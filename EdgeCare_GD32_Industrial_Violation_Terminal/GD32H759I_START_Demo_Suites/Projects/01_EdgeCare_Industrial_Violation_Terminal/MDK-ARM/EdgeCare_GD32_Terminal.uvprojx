@@ -414,6 +414,11 @@
               <FileType>1</FileType>
               <FilePath>..\platform\edgecare_log.c</FilePath>
             </File>
+            <File>
+              <FileName>edgecare_preprocess.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\vision\edgecare_preprocess.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

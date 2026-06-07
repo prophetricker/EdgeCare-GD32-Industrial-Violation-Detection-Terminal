@@ -17,6 +17,7 @@
 #include "bsp/bsp_alarm.h"
 #include "bsp/bsp_radar_ld2410.h"
 #include "platform/edgecare_log.h"
+#include "vision/edgecare_preprocess.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -574,19 +575,6 @@ static void camera_dci_dma_init(uint32_t hsync_polarity, uint32_t vsync_polarity
     dma_single_data_mode_init(DMA1, DMA_CH7, &dma_struct);
 }
 
-static uint8_t camera_frame_y_at(uint32_t pixel_index)
-{
-    uint8_t *frame = (uint8_t *)g_camera_capture_buffer;
-    uint32_t pair_offset = (pixel_index / 2U) * 4U;
-
-    /* OV5640 0x4300 low bits select YUYV. In memory: even pixel Y at byte 0, odd pixel Y at byte 2. */
-    if(0U == (pixel_index & 1U)) {
-        return frame[pair_offset];
-    }
-
-    return frame[pair_offset + 2U];
-}
-
 static uint8_t edgecare_infer(const uint8_t *input, edgecare_infer_result_t *result)
 {
     uint32_t i;
@@ -621,36 +609,12 @@ static uint8_t edgecare_infer(const uint8_t *input, edgecare_infer_result_t *res
 
 static void edgecare_preprocess_gray96_probe(void)
 {
-    uint32_t x;
-    uint32_t y;
-    uint32_t checksum = 0U;
-    uint32_t sum = 0U;
-    uint8_t min_value = 0xFFU;
-    uint8_t max_value = 0U;
-    uint8_t value;
+    edgecare_preprocess_gray96_stats_t stats;
     edgecare_infer_result_t infer_result;
 
-    for(y = 0U; y < MODEL_INPUT_HEIGHT; y++) {
-        uint32_t src_y = (y * CAMERA_FRAME_HEIGHT) / MODEL_INPUT_HEIGHT;
-        for(x = 0U; x < MODEL_INPUT_WIDTH; x++) {
-            uint32_t src_x = (x * CAMERA_FRAME_WIDTH) / MODEL_INPUT_WIDTH;
-            uint32_t src_pixel = (src_y * CAMERA_FRAME_WIDTH) + src_x;
-            uint32_t dst_index = (y * MODEL_INPUT_WIDTH) + x;
-
-            value = camera_frame_y_at(src_pixel);
-            g_model_input_gray[dst_index] = value;
-            sum += value;
-            checksum ^= ((uint32_t)value << ((dst_index & 3U) * 8U));
-            checksum = (checksum << 3U) | (checksum >> 29U);
-
-            if(value < min_value) {
-                min_value = value;
-            }
-            if(value > max_value) {
-                max_value = value;
-            }
-        }
-    }
+    edgecare_preprocess_gray96_from_yuyv((const uint8_t *)g_camera_capture_buffer,
+                                         g_model_input_gray,
+                                         &stats);
 
     printf("preprocess_gray96: source=YUYV_Y qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
            (unsigned int)CAMERA_FRAME_WIDTH,
@@ -658,14 +622,14 @@ static void edgecare_preprocess_gray96_probe(void)
            (unsigned int)MODEL_INPUT_WIDTH,
            (unsigned int)MODEL_INPUT_HEIGHT,
            (unsigned long)MODEL_INPUT_BYTES,
-           min_value,
-           max_value,
-           (unsigned long)(sum / MODEL_INPUT_BYTES),
-           (unsigned long)checksum,
-           g_model_input_gray[((MODEL_INPUT_HEIGHT / 2U) * MODEL_INPUT_WIDTH) + (MODEL_INPUT_WIDTH / 2U)],
-           g_model_input_gray[((MODEL_INPUT_HEIGHT / 2U) * MODEL_INPUT_WIDTH) + (MODEL_INPUT_WIDTH / 2U) + 1U],
-           g_model_input_gray[(((MODEL_INPUT_HEIGHT / 2U) + 1U) * MODEL_INPUT_WIDTH) + (MODEL_INPUT_WIDTH / 2U)],
-           g_model_input_gray[(((MODEL_INPUT_HEIGHT / 2U) + 1U) * MODEL_INPUT_WIDTH) + (MODEL_INPUT_WIDTH / 2U) + 1U]);
+           stats.min_value,
+           stats.max_value,
+           (unsigned long)stats.mean,
+           (unsigned long)stats.checksum,
+           stats.center[0],
+           stats.center[1],
+           stats.center[2],
+           stats.center[3]);
 
     if(edgecare_infer(g_model_input_gray, &infer_result)) {
         g_edgecare.confidence_percent = infer_result.confidence_percent;
