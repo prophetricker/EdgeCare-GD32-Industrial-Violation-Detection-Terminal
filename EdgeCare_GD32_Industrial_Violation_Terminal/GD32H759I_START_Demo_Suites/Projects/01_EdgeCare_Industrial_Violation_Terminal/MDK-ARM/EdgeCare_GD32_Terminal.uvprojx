@@ -419,6 +419,11 @@
               <FileType>1</FileType>
               <FilePath>..\vision\edgecare_preprocess.c</FilePath>
             </File>
+            <File>
+              <FileName>edgecare_infer.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\model\edgecare_infer.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

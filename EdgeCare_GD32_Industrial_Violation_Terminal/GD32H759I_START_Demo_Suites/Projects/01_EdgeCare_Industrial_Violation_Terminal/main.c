@@ -16,6 +16,7 @@
 #include "board/board_config.h"
 #include "bsp/bsp_alarm.h"
 #include "bsp/bsp_radar_ld2410.h"
+#include "model/edgecare_infer.h"
 #include "platform/edgecare_log.h"
 #include "vision/edgecare_preprocess.h"
 #include <stdio.h>
@@ -42,13 +43,6 @@ typedef struct {
     uint16_t reg;
     uint8_t value;
 } camera_reg8_t;
-
-typedef struct {
-    uint8_t intrusion;
-    uint8_t confidence_percent;
-    uint8_t mean;
-    uint8_t contrast;
-} edgecare_infer_result_t;
 
 static edgecare_context_t g_edgecare = {
     EDGECARE_STATE_IDLE,
@@ -573,38 +567,6 @@ static void camera_dci_dma_init(uint32_t hsync_polarity, uint32_t vsync_polarity
     dma_struct.circular_mode = DMA_CIRCULAR_MODE_DISABLE;
     dma_struct.priority = DMA_PRIORITY_HIGH;
     dma_single_data_mode_init(DMA1, DMA_CH7, &dma_struct);
-}
-
-static uint8_t edgecare_infer(const uint8_t *input, edgecare_infer_result_t *result)
-{
-    uint32_t i;
-    uint32_t sum = 0U;
-    uint8_t min_value = 0xFFU;
-    uint8_t max_value = 0U;
-    uint8_t value;
-
-    for(i = 0U; i < MODEL_INPUT_BYTES; i++) {
-        value = input[i];
-        sum += value;
-        if(value < min_value) {
-            min_value = value;
-        }
-        if(value > max_value) {
-            max_value = value;
-        }
-    }
-
-    result->mean = (uint8_t)(sum / MODEL_INPUT_BYTES);
-    result->contrast = (uint8_t)(max_value - min_value);
-
-    /*
-       Placeholder until the PC-trained model is ready. It proves the model interface
-       and gives a scene-sensitive number, but it is not a real intrusion classifier.
-    */
-    result->confidence_percent = (result->contrast > 120U) ? 90U : (uint8_t)((result->contrast * 3U) / 4U);
-    result->intrusion = (result->confidence_percent >= 75U) ? 1U : 0U;
-
-    return 1U;
 }
 
 static void edgecare_preprocess_gray96_probe(void)
