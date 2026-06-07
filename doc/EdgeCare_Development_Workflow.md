@@ -31,6 +31,28 @@ from:
 EdgeCare_GD32_Industrial_Violation_Terminal
 ```
 
+## Pre-Commit Verify Task
+
+VS Code task:
+
+```text
+Project: Verify EdgeCare
+```
+
+It runs:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify_edgecare.ps1
+```
+
+from the project root. The script checks:
+
+- `git diff --check`
+- `git diff --cached --check`
+- project safety scan, when the local Codex kanban skill is installed
+- Keil command-line build
+- `build-keil.log` contains `0 Error(s), 0 Warning(s)`
+
 ## Keil Responsibilities
 
 Keep these in Keil for now:

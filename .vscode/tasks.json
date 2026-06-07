@@ -24,6 +24,26 @@
         "clear": true
       },
       "problemMatcher": []
+    },
+    {
+      "label": "Project: Verify EdgeCare",
+      "type": "shell",
+      "command": "powershell",
+      "args": [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        ".\\tools\\verify_edgecare.ps1"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
     }
   ]
 }
