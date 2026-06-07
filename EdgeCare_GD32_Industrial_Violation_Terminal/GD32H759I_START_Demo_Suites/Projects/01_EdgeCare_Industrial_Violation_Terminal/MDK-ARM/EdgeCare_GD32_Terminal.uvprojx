@@ -409,6 +409,11 @@
               <FileType>1</FileType>
               <FilePath>..\bsp\bsp_radar_ld2410.c</FilePath>
             </File>
+            <File>
+              <FileName>edgecare_log.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\platform\edgecare_log.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

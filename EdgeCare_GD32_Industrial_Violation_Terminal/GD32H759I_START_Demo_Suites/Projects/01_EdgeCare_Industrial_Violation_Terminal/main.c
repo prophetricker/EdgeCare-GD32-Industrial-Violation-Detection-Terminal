@@ -16,6 +16,7 @@
 #include "board/board_config.h"
 #include "bsp/bsp_alarm.h"
 #include "bsp/bsp_radar_ld2410.h"
+#include "platform/edgecare_log.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -809,22 +810,6 @@ static void alarm_set(uint8_t active)
     bsp_alarm_set_active(g_edgecare.alarm_active);
 }
 
-static void edgecare_log_status(void)
-{
-    printf("[%lu] state=%s radar=%u infer_ms=%lu conf=%u.%02u alarm=%u seq=%lu\r\n",
-           (unsigned long)g_edgecare.ts_ms,
-           edgecare_state_name(g_edgecare.state),
-           g_edgecare.radar_triggered,
-           (unsigned long)g_edgecare.infer_ms,
-           g_edgecare.confidence_percent / 100U,
-           g_edgecare.confidence_percent % 100U,
-           g_edgecare.alarm_active,
-           (unsigned long)g_edgecare.seq);
-
-    while(RESET == usart_flag_get(EVAL_COM, USART_FLAG_TC)) {
-    }
-}
-
 static void edgecare_step(void)
 {
     g_edgecare.radar_triggered = bsp_radar_ld2410_is_triggered();
@@ -841,7 +826,13 @@ static void edgecare_step(void)
     }
 
     g_edgecare.seq++;
-    edgecare_log_status();
+    edgecare_log_status(g_edgecare.ts_ms,
+                        edgecare_state_name(g_edgecare.state),
+                        g_edgecare.radar_triggered,
+                        g_edgecare.infer_ms,
+                        g_edgecare.confidence_percent,
+                        g_edgecare.alarm_active,
+                        g_edgecare.seq);
 }
 
 int main(void)
