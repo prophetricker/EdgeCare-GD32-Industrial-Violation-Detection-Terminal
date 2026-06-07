@@ -1,0 +1,72 @@
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.bak
+*.swp
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Logs and generated local output
+*.log
+old-build-check.log
+.embeddedskills/build/
+.embeddedskills/logs/
+.embeddedskills/state.json
+
+# Keil MDK generated files
+**/Objects/
+**/Listings/
+**/RTE/
+**/EWARM/
+**/*.uvguix.*
+**/*.uvoptx
+**/*.scvd
+**/*.dbgconf
+**/*.dep
+**/*.crf
+**/*.d
+**/*.o
+**/*.axf
+**/*.hex
+**/*.map
+**/*.htm
+
+# Heavy downloaded documentation, SDKs, archives, and extracted tools.
+# Keep lightweight project notes under doc/*.md tracked by explicit git add.
+doc/**
+!doc/
+!doc/*.md
+!doc/hardware_manuals/
+!doc/hardware_manuals/README.md
+!doc/competition_materials/
+!doc/competition_materials/README.md
+
+# Vendor firmware library is kept locally for building but should not be
+# touched during EdgeCare refactors unless explicitly needed.
+EdgeCare_GD32_Industrial_Violation_Terminal/GD32H7xx_Firmware_Library/
+
+# Data/model artifacts for later AI work
+data/
+dataset/
+datasets/
+weights/
+models/
+*.onnx
+*.tflite
+*.pt
+*.pth
+*.safetensors
+*.npy
+*.npz
+
+# Media/export artifacts
+*.mp4
+*.mov
+*.avi
+*.apk
+*.ipa

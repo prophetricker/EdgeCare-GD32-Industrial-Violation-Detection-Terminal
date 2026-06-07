@@ -1,0 +1,78 @@
+# EdgeCare Development Workflow
+
+Goal: use VS Code and Codex for editing, Keil MDK for compiling, downloading, and debugging.
+
+## Daily Loop
+
+1. Codex edits code and updates `看板.md`.
+2. Press `Ctrl+Shift+B` in VS Code to run the Keil build task.
+3. If build fails, Codex reads `EdgeCare_GD32_Industrial_Violation_Terminal/build-keil.log` and fixes the first real error.
+4. If build succeeds, download/debug from Keil.
+5. Open Serial Monitor on `COM8`, `115200 8N1`, press RESET, and observe boot/probe logs.
+6. Feed useful serial logs back into the project notes or directly to Codex.
+
+## Current Build Task
+
+VS Code task:
+
+```text
+Keil: Build EdgeCare GD32H759I-START
+```
+
+It runs:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_keil.ps1
+```
+
+from:
+
+```text
+EdgeCare_GD32_Industrial_Violation_Terminal
+```
+
+## Keil Responsibilities
+
+Keep these in Keil for now:
+
+- Device pack and target options
+- CMSIS-DAP/GD-Link connection
+- Flash algorithm configuration
+- Download
+- Breakpoint debugging
+- Register/memory inspection
+
+This keeps the workflow stable while the OpenOCD/GD-Link flash path is uncertain for GD32H759.
+
+## Codex Responsibilities
+
+Codex should:
+
+- Change source files and docs.
+- Keep `main.c` from growing further during refactor.
+- Read `build-keil.log` when build fails.
+- Use the installed `keil` skill after Codex restart for scan/build/log parsing.
+- Use the installed `serial` skill after Codex restart for COM discovery and bounded log capture.
+
+Codex should not:
+
+- Auto-flash without explicit user request.
+- Rewrite `.uvprojx` casually.
+- Treat placeholder inference as real AI.
+
+## Embeddedskills Configuration
+
+The project-level configuration is:
+
+```text
+.embeddedskills/config.json
+```
+
+It pins:
+
+- Keil project path
+- Keil target name
+- build log directory
+- serial defaults for `COM8`, `115200 8N1`
+
+After restarting Codex, installed skills can use this configuration instead of rediscovering the project every time.

@@ -1,0 +1,23 @@
+{
+  "keil": {
+    "project": "EdgeCare_GD32_Industrial_Violation_Terminal/GD32H759I_START_Demo_Suites/Projects/01_EdgeCare_Industrial_Violation_Terminal/MDK-ARM/EdgeCare_GD32_Terminal.uvprojx",
+    "target": "EdgeCare_GD32_Terminal",
+    "log_dir": ".embeddedskills/build"
+  },
+  "serial": {
+    "port": "COM8",
+    "baudrate": 115200,
+    "bytesize": 8,
+    "parity": "none",
+    "stopbits": 1,
+    "encoding": "utf-8",
+    "timeout_sec": 1.0,
+    "log_dir": ".embeddedskills/logs/serial"
+  },
+  "workflow": {
+    "preferred_build": "keil",
+    "preferred_flash": "auto",
+    "preferred_debug": "auto",
+    "preferred_observe": "auto"
+  }
+}
