@@ -75,12 +75,27 @@ Codex should:
 - Read `build-keil.log` when build fails.
 - Use the installed `keil` skill after Codex restart for scan/build/log parsing.
 - Use the installed `serial` skill after Codex restart for COM discovery and bounded log capture.
+- Keep data collection scripts aligned with the firmware `gray96` model input format.
 
 Codex should not:
 
 - Auto-flash without explicit user request.
 - Rewrite `.uvprojx` casually.
 - Treat placeholder inference as real AI.
+
+## Data Collection Entry
+
+For model data collection, read:
+
+```text
+doc/EdgeCare_Data_Collection.md
+```
+
+The current capture path uses a firmware switch `EDGECARE_ENABLE_GRAY96_DUMP` and the PC script:
+
+```powershell
+py .\tools\collect_gray96_serial.py --label empty --count 1 --port COM8
+```
 
 ## Embeddedskills Configuration
 

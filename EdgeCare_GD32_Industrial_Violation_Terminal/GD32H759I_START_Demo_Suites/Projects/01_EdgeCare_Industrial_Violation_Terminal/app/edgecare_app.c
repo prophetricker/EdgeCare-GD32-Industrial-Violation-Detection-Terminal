@@ -58,6 +58,38 @@ static void edgecare_alarm_set(uint8_t active)
     bsp_alarm_set_active(g_edgecare.alarm_active);
 }
 
+#if EDGECARE_ENABLE_GRAY96_DUMP
+static void edgecare_dump_gray96(const uint8_t *gray96,
+                                 const edgecare_preprocess_gray96_stats_t *stats)
+{
+    uint32_t offset;
+
+    printf("gray96_dump_begin: dev=%s width=%u height=%u bytes=%lu checksum=0x%08lX format=hex8\r\n",
+           EDGECARE_DEVICE_ID,
+           (unsigned int)MODEL_INPUT_WIDTH,
+           (unsigned int)MODEL_INPUT_HEIGHT,
+           (unsigned long)MODEL_INPUT_BYTES,
+           (unsigned long)stats->checksum);
+
+    for(offset = 0U; offset < MODEL_INPUT_BYTES; offset += EDGECARE_GRAY96_DUMP_CHUNK_BYTES) {
+        uint32_t i;
+        uint32_t chunk_bytes = EDGECARE_GRAY96_DUMP_CHUNK_BYTES;
+
+        if((offset + chunk_bytes) > MODEL_INPUT_BYTES) {
+            chunk_bytes = MODEL_INPUT_BYTES - offset;
+        }
+
+        printf("gray96_dump_data: offset=%lu hex=", (unsigned long)offset);
+        for(i = 0U; i < chunk_bytes; i++) {
+            printf("%02X", gray96[offset + i]);
+        }
+        printf("\r\n");
+    }
+
+    printf("gray96_dump_end: bytes=%lu\r\n", (unsigned long)MODEL_INPUT_BYTES);
+}
+#endif /* EDGECARE_ENABLE_GRAY96_DUMP */
+
 static void edgecare_preprocess_gray96_probe(void)
 {
     edgecare_preprocess_gray96_stats_t stats;
@@ -81,6 +113,10 @@ static void edgecare_preprocess_gray96_probe(void)
            stats.center[1],
            stats.center[2],
            stats.center[3]);
+
+#if EDGECARE_ENABLE_GRAY96_DUMP
+    edgecare_dump_gray96(g_model_input_gray, &stats);
+#endif
 
     if(edgecare_infer(g_model_input_gray, &infer_result)) {
         g_edgecare.confidence_percent = infer_result.confidence_percent;

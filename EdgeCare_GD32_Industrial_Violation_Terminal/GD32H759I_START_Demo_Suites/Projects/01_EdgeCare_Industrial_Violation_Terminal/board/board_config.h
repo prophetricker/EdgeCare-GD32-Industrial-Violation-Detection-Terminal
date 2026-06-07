@@ -47,4 +47,8 @@
 #define EDGECARE_DEVICE_ID     "edgecare-01"
 #define EDGECARE_LOG_PERIOD_MS 500U
 
+/* Set to 1 only during dataset capture. UART dumps are intentionally verbose. */
+#define EDGECARE_ENABLE_GRAY96_DUMP      0U
+#define EDGECARE_GRAY96_DUMP_CHUNK_BYTES 32U
+
 #endif /* BOARD_CONFIG_H */
