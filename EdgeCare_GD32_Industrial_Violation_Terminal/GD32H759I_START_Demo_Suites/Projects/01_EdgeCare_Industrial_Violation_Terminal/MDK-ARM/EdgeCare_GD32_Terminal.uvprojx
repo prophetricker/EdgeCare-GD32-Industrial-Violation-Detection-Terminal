@@ -400,6 +400,11 @@
               <FilePath>..\systick.c</FilePath>
             </File>
             <File>
+              <FileName>edgecare_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\app\edgecare_app.c</FilePath>
+            </File>
+            <File>
               <FileName>bsp_alarm.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\bsp\bsp_alarm.c</FilePath>
@@ -408,6 +413,11 @@
               <FileName>bsp_radar_ld2410.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\bsp\bsp_radar_ld2410.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_camera_ov5640.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\bsp\bsp_camera_ov5640.c</FilePath>
             </File>
             <File>
               <FileName>edgecare_log.c</FileName>
