@@ -399,6 +399,16 @@
               <FileType>1</FileType>
               <FilePath>..\systick.c</FilePath>
             </File>
+            <File>
+              <FileName>bsp_alarm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\bsp\bsp_alarm.c</FilePath>
+            </File>
+            <File>
+              <FileName>bsp_radar_ld2410.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\bsp\bsp_radar_ld2410.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

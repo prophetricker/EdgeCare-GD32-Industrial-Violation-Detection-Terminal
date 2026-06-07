@@ -1,0 +1,50 @@
+/*!
+    \file    board_config.h
+    \brief   EdgeCare GD32H759I-START board-level configuration
+*/
+
+#ifndef BOARD_CONFIG_H
+#define BOARD_CONFIG_H
+
+#include "gd32h7xx.h"
+
+#define ALARM_GPIO_PORT        GPIOA
+#define ALARM_GPIO_PIN         GPIO_PIN_8
+#define ALARM_GPIO_RCU         RCU_GPIOA
+
+#define RADAR_GPIO_PORT        GPIOF
+#define RADAR_GPIO_PIN         GPIO_PIN_8
+#define RADAR_GPIO_RCU         RCU_GPIOF
+#define RADAR_ACTIVE_HIGH      1U
+
+#define CAMERA_SCCB            I2C1
+#define CAMERA_SCCB_IDX        IDX_I2C1
+#define CAMERA_SCCB_RCU        RCU_I2C1
+#define CAMERA_SCCB_GPIO_RCU   RCU_GPIOB
+#define CAMERA_SCCB_GPIO_PORT  GPIOB
+#define CAMERA_SCCB_SCL_PIN    GPIO_PIN_10
+#define CAMERA_SCCB_SDA_PIN    GPIO_PIN_11
+#define CAMERA_SCCB_AF         GPIO_AF_4
+
+#define CAMERA_CTRL_GPIO_PORT  GPIOD
+#define CAMERA_CTRL_GPIO_RCU   RCU_GPIOD
+#define CAMERA_RES_PIN         GPIO_PIN_0
+#define CAMERA_PWON_PIN        GPIO_PIN_1
+
+#define CAMERA_SCCB_ADDR       0x78U
+#define CAMERA_TIMEOUT         1000000U
+#define CAMERA_FRAME_WIDTH     320U
+#define CAMERA_FRAME_HEIGHT    240U
+#define CAMERA_FRAME_BPP       2U
+#define CAMERA_CAPTURE_BYTES   (CAMERA_FRAME_WIDTH * CAMERA_FRAME_HEIGHT * CAMERA_FRAME_BPP)
+#define CAMERA_CAPTURE_WORDS   (CAMERA_CAPTURE_BYTES / 4U)
+#define CAMERA_CAPTURE_TIMEOUT 60000000U
+
+#define MODEL_INPUT_WIDTH      96U
+#define MODEL_INPUT_HEIGHT     96U
+#define MODEL_INPUT_BYTES      (MODEL_INPUT_WIDTH * MODEL_INPUT_HEIGHT)
+
+#define EDGECARE_DEVICE_ID     "edgecare-01"
+#define EDGECARE_LOG_PERIOD_MS 500U
+
+#endif /* BOARD_CONFIG_H */

@@ -13,47 +13,13 @@
 #include "gd32h7xx.h"
 #include "gd32h759i_start.h"
 #include "systick.h"
+#include "board/board_config.h"
+#include "bsp/bsp_alarm.h"
+#include "bsp/bsp_radar_ld2410.h"
 #include <stdio.h>
 #include <string.h>
 
-#define ALARM_GPIO_PORT        GPIOA
-#define ALARM_GPIO_PIN         GPIO_PIN_8
-#define ALARM_GPIO_RCU         RCU_GPIOA
-
-#define RADAR_GPIO_PORT        GPIOF
-#define RADAR_GPIO_PIN         GPIO_PIN_8
-#define RADAR_GPIO_RCU         RCU_GPIOF
-#define RADAR_ACTIVE_HIGH      1U
-
-#define CAMERA_SCCB            I2C1
-#define CAMERA_SCCB_IDX        IDX_I2C1
-#define CAMERA_SCCB_RCU        RCU_I2C1
-#define CAMERA_SCCB_GPIO_RCU   RCU_GPIOB
-#define CAMERA_SCCB_GPIO_PORT  GPIOB
-#define CAMERA_SCCB_SCL_PIN    GPIO_PIN_10
-#define CAMERA_SCCB_SDA_PIN    GPIO_PIN_11
-#define CAMERA_SCCB_AF         GPIO_AF_4
-
-#define CAMERA_CTRL_GPIO_PORT  GPIOD
-#define CAMERA_CTRL_GPIO_RCU   RCU_GPIOD
-#define CAMERA_RES_PIN         GPIO_PIN_0
-#define CAMERA_PWON_PIN        GPIO_PIN_1
-
-#define CAMERA_SCCB_ADDR       0x78U
-#define CAMERA_TIMEOUT         1000000U
-#define CAMERA_FRAME_WIDTH     320U
-#define CAMERA_FRAME_HEIGHT    240U
-#define CAMERA_FRAME_BPP       2U
-#define CAMERA_CAPTURE_BYTES   (CAMERA_FRAME_WIDTH * CAMERA_FRAME_HEIGHT * CAMERA_FRAME_BPP)
-#define CAMERA_CAPTURE_WORDS   (CAMERA_CAPTURE_BYTES / 4U)
-#define CAMERA_CAPTURE_TIMEOUT 60000000U
-#define MODEL_INPUT_WIDTH      96U
-#define MODEL_INPUT_HEIGHT     96U
-#define MODEL_INPUT_BYTES      (MODEL_INPUT_WIDTH * MODEL_INPUT_HEIGHT)
 #define DCI_DATA_ADDRESS       ((uint32_t)&DCI_DATA)
-
-#define EDGECARE_DEVICE_ID     "edgecare-01"
-#define EDGECARE_LOG_PERIOD_MS 500U
 
 typedef enum {
     EDGECARE_STATE_IDLE = 0,
@@ -218,35 +184,6 @@ static const char *edgecare_state_name(edgecare_state_t state)
     default:
         return "UNKNOWN";
     }
-}
-
-static void alarm_gpio_init(void)
-{
-    rcu_periph_clock_enable(ALARM_GPIO_RCU);
-
-    gpio_mode_set(ALARM_GPIO_PORT, GPIO_MODE_OUTPUT, GPIO_PUPD_NONE, ALARM_GPIO_PIN);
-    gpio_output_options_set(ALARM_GPIO_PORT, GPIO_OTYPE_PP, GPIO_OSPEED_60MHZ, ALARM_GPIO_PIN);
-
-    /* The alarm module is active-low, so drive high to keep it off at boot. */
-    gpio_bit_set(ALARM_GPIO_PORT, ALARM_GPIO_PIN);
-}
-
-static void radar_gpio_init(void)
-{
-    rcu_periph_clock_enable(RADAR_GPIO_RCU);
-
-    gpio_mode_set(RADAR_GPIO_PORT, GPIO_MODE_INPUT, GPIO_PUPD_PULLDOWN, RADAR_GPIO_PIN);
-}
-
-static uint8_t radar_is_triggered(void)
-{
-    FlagStatus level = gpio_input_bit_get(RADAR_GPIO_PORT, RADAR_GPIO_PIN);
-
-#if RADAR_ACTIVE_HIGH
-    return (SET == level) ? 1U : 0U;
-#else
-    return (RESET == level) ? 1U : 0U;
-#endif
 }
 
 static uint8_t camera_wait_flag(uint32_t flag)
@@ -869,12 +806,7 @@ static void edgecare_camera_capture_probe(void)
 static void alarm_set(uint8_t active)
 {
     g_edgecare.alarm_active = active ? 1U : 0U;
-
-    if(g_edgecare.alarm_active) {
-        gpio_bit_reset(ALARM_GPIO_PORT, ALARM_GPIO_PIN);
-    } else {
-        gpio_bit_set(ALARM_GPIO_PORT, ALARM_GPIO_PIN);
-    }
+    bsp_alarm_set_active(g_edgecare.alarm_active);
 }
 
 static void edgecare_log_status(void)
@@ -895,7 +827,7 @@ static void edgecare_log_status(void)
 
 static void edgecare_step(void)
 {
-    g_edgecare.radar_triggered = radar_is_triggered();
+    g_edgecare.radar_triggered = bsp_radar_ld2410_is_triggered();
     g_edgecare.infer_ms = 0U;
 
     if(g_edgecare.radar_triggered) {
@@ -919,8 +851,8 @@ int main(void)
     cache_enable();
     systick_config();
     gd_eval_com_init(EVAL_COM);
-    alarm_gpio_init();
-    radar_gpio_init();
+    bsp_alarm_init();
+    bsp_radar_ld2410_init();
 
     printf("\r\n%s boot: EdgeCare GD32H759 terminal bring-up\r\n", EDGECARE_DEVICE_ID);
     printf("log_format: [ts_ms] state=... radar=... infer_ms=... conf=... alarm=... seq=...\r\n");

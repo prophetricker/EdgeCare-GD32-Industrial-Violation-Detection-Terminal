@@ -26,10 +26,10 @@ If `IN` is connected to another MCU pin, edit these macros:
 #define ALARM_GPIO_RCU     RCU_GPIOA
 ```
 
-Source file:
+Board configuration file:
 
 ```text
-GD32H759I_START_Demo_Suites/Projects/01_EdgeCare_Industrial_Violation_Terminal/main.c
+GD32H759I_START_Demo_Suites/Projects/01_EdgeCare_Industrial_Violation_Terminal/board/board_config.h
 ```
 
 ### LD2410 Presence Output
@@ -55,7 +55,7 @@ This firmware treats `O` as active-high: no person means `radar=0`, detected per
 #define RADAR_ACTIVE_HIGH  1U
 ```
 
-Default radar GPIO macros:
+Default radar GPIO macros in `board/board_config.h`:
 
 ```c
 #define RADAR_GPIO_PORT    GPIOF
