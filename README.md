@@ -42,6 +42,7 @@ QVGA YUV422 -> gray96 -> edgecare_infer()
 - [项目看板](看板.md)：当前进度、阻塞点和下一步。
 - [固件工程说明](EdgeCare_GD32_Industrial_Violation_Terminal/README.md)：接线、Keil 下载和串口日志。
 - [硬件引脚表](doc/EdgeCare_Hardware_Pinout.md)：GD32H759、雷达、报警灯和摄像头接线。
+- [快速接线表](doc/EdgeCare_Wiring_Table.md)：按模块列出每根线的连接方式。
 - [相机调试记录](doc/EdgeCare_Camera_Bringup_Notes.md)：OV5640、DCI/DMA 和诊断日志解释。
 - [数据采集流程](doc/EdgeCare_Data_Collection.md)：`gray96` 样本导出和有效性检查。
 - [开发工作流](doc/EdgeCare_Development_Workflow.md)：VS Code、Codex、Keil 和 Git 流程。

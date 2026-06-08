@@ -4,6 +4,8 @@ Updated: 2026-06-08
 
 This file records the current wiring for the initial-round EdgeCare demo on `GD32H759I-START`.
 
+For a direct wire-by-wire checklist, read `doc/EdgeCare_Wiring_Table.md`.
+
 ## Confirmed Wiring
 
 | Module | Signal | GD32H759I-START Pin | Direction | Notes |
