@@ -39,6 +39,12 @@ static edgecare_context_t g_edgecare = {
 };
 
 static uint8_t g_model_input_gray[MODEL_INPUT_BYTES] __attribute__((aligned(32)));
+#if EDGECARE_ENABLE_GRAY96_DUMP && EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS
+static uint8_t g_debug_gray_variant[MODEL_INPUT_BYTES] __attribute__((aligned(32)));
+#endif
+#if EDGECARE_ENABLE_GRAY96_DUMP && EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP
+static uint8_t g_debug_byte_plane[CAMERA_DIAG_PLANE_BYTES] __attribute__((aligned(32)));
+#endif
 
 static const char *edgecare_state_name(edgecare_state_t state)
 {
@@ -59,34 +65,54 @@ static void edgecare_alarm_set(uint8_t active)
 }
 
 #if EDGECARE_ENABLE_GRAY96_DUMP
-static void edgecare_dump_gray96(const uint8_t *gray96,
-                                 const edgecare_preprocess_gray96_stats_t *stats)
+static void edgecare_dump_image(const char *kind,
+                                const char *variant,
+                                const uint8_t *image,
+                                uint32_t width,
+                                uint32_t height,
+                                uint32_t bytes,
+                                const edgecare_preprocess_gray96_stats_t *stats)
 {
     uint32_t offset;
 
-    printf("gray96_dump_begin: dev=%s width=%u height=%u bytes=%lu checksum=0x%08lX format=hex8\r\n",
+    printf("image_dump_begin: dev=%s kind=%s variant=%s width=%lu height=%lu bytes=%lu checksum=0x%08lX format=hex8\r\n",
            EDGECARE_DEVICE_ID,
-           (unsigned int)MODEL_INPUT_WIDTH,
-           (unsigned int)MODEL_INPUT_HEIGHT,
-           (unsigned long)MODEL_INPUT_BYTES,
+           kind,
+           variant,
+           (unsigned long)width,
+           (unsigned long)height,
+           (unsigned long)bytes,
            (unsigned long)stats->checksum);
 
-    for(offset = 0U; offset < MODEL_INPUT_BYTES; offset += EDGECARE_GRAY96_DUMP_CHUNK_BYTES) {
+    for(offset = 0U; offset < bytes; offset += EDGECARE_GRAY96_DUMP_CHUNK_BYTES) {
         uint32_t i;
         uint32_t chunk_bytes = EDGECARE_GRAY96_DUMP_CHUNK_BYTES;
 
-        if((offset + chunk_bytes) > MODEL_INPUT_BYTES) {
-            chunk_bytes = MODEL_INPUT_BYTES - offset;
+        if((offset + chunk_bytes) > bytes) {
+            chunk_bytes = bytes - offset;
         }
 
-        printf("gray96_dump_data: offset=%lu hex=", (unsigned long)offset);
+        printf("image_dump_data: offset=%lu hex=", (unsigned long)offset);
         for(i = 0U; i < chunk_bytes; i++) {
-            printf("%02X", gray96[offset + i]);
+            printf("%02X", image[offset + i]);
         }
         printf("\r\n");
     }
 
-    printf("gray96_dump_end: bytes=%lu\r\n", (unsigned long)MODEL_INPUT_BYTES);
+    printf("image_dump_end: bytes=%lu\r\n", (unsigned long)bytes);
+}
+
+static void edgecare_dump_gray96(const char *variant,
+                                 const uint8_t *gray96,
+                                 const edgecare_preprocess_gray96_stats_t *stats)
+{
+    edgecare_dump_image("gray96",
+                        variant,
+                        gray96,
+                        MODEL_INPUT_WIDTH,
+                        MODEL_INPUT_HEIGHT,
+                        MODEL_INPUT_BYTES,
+                        stats);
 }
 #endif /* EDGECARE_ENABLE_GRAY96_DUMP */
 
@@ -115,7 +141,69 @@ static void edgecare_preprocess_gray96_probe(void)
            stats.center[3]);
 
 #if EDGECARE_ENABLE_GRAY96_DUMP
-    edgecare_dump_gray96(g_model_input_gray, &stats);
+    edgecare_dump_gray96("yuv422_y02", g_model_input_gray, &stats);
+#if EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS
+    edgecare_preprocess_gray96_stats_t variant_stats;
+
+    edgecare_preprocess_gray96_from_yuv422_phase(bsp_camera_ov5640_frame(),
+                                                 1U,
+                                                 g_debug_gray_variant,
+                                                 &variant_stats);
+    printf("preprocess_gray96_variant: source=YUV422_Y13 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+           (unsigned int)CAMERA_FRAME_WIDTH,
+           (unsigned int)CAMERA_FRAME_HEIGHT,
+           (unsigned int)MODEL_INPUT_WIDTH,
+           (unsigned int)MODEL_INPUT_HEIGHT,
+           (unsigned long)MODEL_INPUT_BYTES,
+           variant_stats.min_value,
+           variant_stats.max_value,
+           (unsigned long)variant_stats.mean,
+           (unsigned long)variant_stats.checksum,
+           variant_stats.center[0],
+           variant_stats.center[1],
+           variant_stats.center[2],
+           variant_stats.center[3]);
+    edgecare_dump_gray96("yuv422_y13", g_debug_gray_variant, &variant_stats);
+#endif
+#if EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP
+    {
+        edgecare_preprocess_gray96_stats_t plane_stats;
+        static const char *const plane_names[4] = {
+            "byte_plane0",
+            "byte_plane1",
+            "byte_plane2",
+            "byte_plane3"
+        };
+        uint32_t phase;
+
+        for(phase = 0U; phase < 4U; phase++) {
+            edgecare_preprocess_byte_plane_from_frame(bsp_camera_ov5640_frame(),
+                                                      (uint8_t)phase,
+                                                      g_debug_byte_plane,
+                                                      &plane_stats);
+            printf("preprocess_byte_plane: source=raw_qvga phase=%lu out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+                   (unsigned long)phase,
+                   (unsigned int)CAMERA_DIAG_PLANE_WIDTH,
+                   (unsigned int)CAMERA_DIAG_PLANE_HEIGHT,
+                   (unsigned long)CAMERA_DIAG_PLANE_BYTES,
+                   plane_stats.min_value,
+                   plane_stats.max_value,
+                   (unsigned long)plane_stats.mean,
+                   (unsigned long)plane_stats.checksum,
+                   plane_stats.center[0],
+                   plane_stats.center[1],
+                   plane_stats.center[2],
+                   plane_stats.center[3]);
+            edgecare_dump_image("byte_plane",
+                                plane_names[phase],
+                                g_debug_byte_plane,
+                                CAMERA_DIAG_PLANE_WIDTH,
+                                CAMERA_DIAG_PLANE_HEIGHT,
+                                CAMERA_DIAG_PLANE_BYTES,
+                                &plane_stats);
+        }
+    }
+#endif
 #endif
 
     if(edgecare_infer(g_model_input_gray, &infer_result)) {

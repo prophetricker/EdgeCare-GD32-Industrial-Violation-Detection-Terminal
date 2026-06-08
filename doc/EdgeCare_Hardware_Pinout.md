@@ -1,6 +1,6 @@
 # EdgeCare Hardware Pinout
 
-Updated: 2026-06-07
+Updated: 2026-06-08
 
 This file records the current wiring for the initial-round EdgeCare demo on `GD32H759I-START`.
 
@@ -146,15 +146,25 @@ Current firmware path:
 main.c -> edgecare_camera_id_probe() -> edgecare_camera_capture_probe() -> periodic edgecare_step()
 ```
 
+Current diagnostic mode:
+
+- OV5640 ISP color bar is enabled by default with `0x503D=0x80`; the saved images should not show the real scene until this test pattern is disabled.
+- DVP `0x4745 DATA ORDER` is swept through `0x02/0x00/0x01/0x03/0x04/0x05/0x06/0x07` to cover data-order and bit-reversal options.
+- DCI samples both PCLK falling and rising edges for the known best HS/VS polarity pair: `HS blanking low + VS blanking high`.
+- The current goal is to find one configuration whose byte-plane dump looks like a stable color-bar pattern. Only after that should real-scene capture be tested.
+
 Expected camera probe output:
 
 ```text
-camera_init: readback 3008=0x02 size=320x240
-camera_capture_probe: start qvga=320x240 bytes=153600 words=38400 timeout=60000000 working_pol=hs_blank_low_vs_blank_high
+camera_init: readback 3008=0x02 size=320x240 polarity_4740=0x20 test_503d=0x80 test_4741=0x00 ...
+camera_capture_probe: start qvga=320x240 bytes=153600 words=38400 timeout=60000000 test_pattern=1 mode=1 ...
 camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PE4 D5=PB6 D6=PE5 D7=PE6
 camera_dvp_gpio: bursts=80 samples_per_burst=50000 pclk_edges=... href_edges=... sync_edges=... href_high=... sync_high=...
-camera_capture[working_hs_blank_low_vs_blank_high]: dma=done|timeout words=38400 ...
+camera_capture[pclk_...]: data_order=0x.. dma=done|timeout words=38400 ... quality=phase...,row_range=...,col_range=...,neighbor_delta=...,score=...
+camera_capture_best: tag=... data_order=0x.. phase=... row_range=... col_range=... neighbor_delta=... score=... recapture=1
+camera_capture[selected_best_for_dump]: data_order=0x.. dma=done|timeout words=38400 ...
 preprocess_gray96: source=YUYV_Y qvga=320x240 out=96x96 bytes=9216 ...
+preprocess_byte_plane: source=raw_qvga phase=...
 infer_probe: model=stat_placeholder input=gray96 mean=... contrast=... conf=... intrusion=...
 ```
 
@@ -165,6 +175,8 @@ For the next hardware test, burn the current Keil build, reset the board while S
 - `pclk_edges/href_edges/sync_edges` are all nonzero: physical DVP timing exists.
 - The selected DCI polarity is `HS blanking low + VS blanking high`, based on the hardware test where this combination produced varied captured data instead of repeated words.
 - Full-frame QVGA capture is verified when `camera_capture[working_hs_blank_low_vs_blank_high]` reports `dma=done words=38400 nonzero=38400`.
+- In the current diagnostic build, prefer the `camera_capture_best` line and the dumped `byte_plane*.bmp` files over the old fixed `working_hs_blank_low_vs_blank_high` tag.
+- A valid color-bar diagnostic should show strong, regular vertical/column structure in at least one byte plane. Pure horizontal scanlines still mean the image path is not visually validated.
 - Day 4 preprocessing is verified when `preprocess_gray96` reports nontrivial `min/max/mean/checksum`, and those values change with scene movement or occlusion.
 - The current `infer_probe` line verifies only the firmware interface for later model replacement. Do not present it as the final AI model in contest materials.
 - `camera_dvp_gpio` edge counts are all zero: H7 sees no physical `PCLK/HREF/SYNC`; check the three signal wires first, then camera stream clock/XCLK and `PA6` LED2 conflict.

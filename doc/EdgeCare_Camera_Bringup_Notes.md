@@ -1,6 +1,6 @@
 # EdgeCare Camera Bring-Up Notes
 
-Updated: 2026-06-07
+Updated: 2026-06-08
 
 ## Current Goal
 
@@ -39,16 +39,20 @@ Current firmware status:
 - The boot log now reads the verified OV5640 ID first.
 - It then writes a minimal OV5640 QVGA/YUV stream configuration derived from the OV5640 software application notes section 13.1.1 and 13.1.2.
 - The latest build also includes the key timing/subsampling/exposure-window registers from the official VGA preview table, because the first minimal table produced PCLK but no HREF/SYNC activity.
+- Current diagnostic build intentionally enables OV5640 test pattern output, so saved images should not match the real scene or the two bottles in front of the lens. This is deliberate: it separates DVP/DCI/data-order problems from lens/exposure/real-scene problems.
+- The latest diagnostic build uses the OV5640 application-note ISP color bar (`0x503D=0x80`, `0x4741=0x00`) as the default test image. The previous DVP test pattern (`0x4741=0x05`) produced horizontal-line images that were not useful enough as a visual correctness proof.
+- The diagnostic build forces `0x4740=0x20` and sweeps all OV5640 `0x4745 DATA ORDER` values `0x02/0x00/0x01/0x03/0x04/0x05/0x06/0x07`, including bit-reversed variants.
+- The expected result in this diagnostic mode is a stable, regular color-bar-like pattern in at least one byte plane. If every byte plane still looks like horizontal scanlines or noise, focus on DVP data bit order, `D0-D7` wiring, PCLK sample edge, and DCI sync window before returning to real-scene capture.
 - Before enabling DCI/DMA, it samples `PCLK/HREF/SYNC` as plain GPIO inputs over 80 longer bursts and prints `camera_dvp_gpio:` edge and high-sample counts.
 - The working DCI polarity found from hardware logs is `HS blanking low + VS blanking high`; this attempt produced non-constant captured data, while other successful combinations mostly produced repeated blanking-like words.
-- The current build captures one full QVGA YUV422 frame: `320x240x2 = 153600 bytes = 38400 words`.
+- The current diagnostic build captures one full QVGA 8-bit DVP frame buffer: `320x240x2 = 153600 bytes = 38400 words`.
 - Hardware logs have verified full-frame capture: `dma=done words=38400 nonzero=38400`, with varied `first/mid/last` samples.
 - It then extracts the Y channel from YUYV and downsamples to a `96x96` grayscale model-input buffer.
 - Hardware logs have verified that the `96x96` grayscale buffer responds to scene brightness: brighter scene `mean=105/max=195`, darker scene `mean=49/max=135`.
-- It prints `camera_capture[working_hs_blank_low_vs_blank_high]`, `preprocess_gray96`, and `infer_probe` diagnostic lines before returning to periodic `state=...` logs.
+- It prints `camera_dvp_regs[...]`, `camera_capture[...]`, `camera_capture_best`, `preprocess_gray96`, `preprocess_byte_plane`, and `infer_probe` diagnostic lines before returning to periodic `state=...` logs.
 - `infer_probe` currently uses `model=stat_placeholder`. It is only a replaceable interface proof, not the final intrusion classifier.
 - If the DVP bus is not wired or the camera does not output pixel/sync clocks, the probe should report `dma=timeout` instead of blocking the alarm/radar loop.
-- The probe currently uses `PCLK=PA6`. The local `readme.txt` for the START demo says LED2 is also connected to `PA6`, so if capture times out or produces unstable data, treat the `PA6` board LED load as a suspect and consider moving pixel clock to another valid exposed `DCI_PIXCLK` pin such as `PE3` if available on the header.
+- The probe currently uses `PCLK=PA6`. START board LED documentation is version-dependent: the local copied utility header uses `PF10/PA6`, while the downloaded START V1.4 demo says LEDs are `PC9-PC12`. Treat `PA6` LED loading as a version-related risk, but if `pclk_edges` is stable it is not the first suspect.
 
 ## Reference Example
 
@@ -138,20 +142,28 @@ Expected firmware output for the Day 3 DVP test:
 
 ```text
 camera_init: ov5640 qvga yuv probe regs=... source=OV5640 app note 13.1.1/13.1.2
-camera_init: readback 3008=0x02 size=320x240
-camera_capture_probe: start qvga=320x240 bytes=153600 words=38400 timeout=60000000 working_pol=hs_blank_low_vs_blank_high
+camera_init: readback 3008=0x02 size=320x240 polarity_4740=... test_503d=... test_4741=...
+camera_dvp_regs[after_init]: ...
+camera_capture_probe: start qvga=320x240 bytes=153600 words=38400 timeout=60000000 test_pattern=1 mode=1 ... data_order_sweep=1
 camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PE4 D5=PB6 D6=PE5 D7=PE6
 camera_dvp_gpio: bursts=80 samples_per_burst=50000 pclk_edges=... href_edges=... sync_edges=... href_high=... sync_high=...
-camera_capture[working_hs_blank_low_vs_blank_high]: dma=done|timeout words=38400 nonzero=... repeated=... checksum=... first=... mid=... last=...
+camera_capture[pclk_...]: data_order=0x.. dma=done|timeout words=38400 remain=... nonzero=... quality=...
+camera_capture_best: tag=... data_order=0x.. phase=... row_range=... col_range=... neighbor_delta=... score=... recapture=1
+camera_capture[selected_best_for_dump]: data_order=0x.. dma=done|timeout words=38400 ...
 preprocess_gray96: source=YUYV_Y qvga=320x240 out=96x96 bytes=9216 min=... max=... mean=... checksum=... center=...
+preprocess_byte_plane: source=raw_qvga phase=...
 infer_probe: model=stat_placeholder input=gray96 mean=... contrast=... conf=... intrusion=... note=replace_with_trained_model
 ```
 
 Interpretation:
 
 - `camera_init: readback 3008=0x02 size=320x240`: SCCB writes landed and the sensor is commanded to stream QVGA.
+- `camera_dvp_regs` should show `300e` with DVP enabled, `3017/3018` output pads enabled, `503d=0x80` in ISP color-bar mode, `4741=0x00`, and `4745` matching the active data-order attempt.
 - `pclk_edges` is nonzero but `href_edges/sync_edges` remain zero: the camera has a pixel clock, but frame/line sync is not visible. Check HREF/SYNC wiring and active level first; if wiring is correct, try a fuller OV5640 reference init table or adjust DCI polarity.
 - `dma=done words=38400 nonzero` close to `38400`: full-frame DMA capture is working. Next step is validating YUV byte order and deriving a grayscale/ROI buffer.
+- `dma=done` while `ef=0` or `remain=0` but the color bar still appears as horizontal scanlines: DMA filled, but the selected data-order/sampling window is probably not producing valid active pixels.
+- One `data_order` value producing a clearly more regular color bar than the others means the next normal-capture build should freeze that `0x4745` value.
+- `neighbor_delta` and `col_range` are rough color-bar quality hints. A color-bar-like image should have meaningful horizontal-neighbor and column variation; a mostly horizontal-line image usually has weak or incoherent column structure.
 - `preprocess_gray96` has a reasonable `min/max` spread and its `checksum/center` changes when the scene changes: the model input buffer is usable for Day 4 data collection.
 - `infer_probe` appearing after `preprocess_gray96`: model-call interface is wired. Treat its result as a placeholder until a trained model is integrated.
 - `first/mid/last` all nearly constant or `repeated` near `38399`: DMA filled but likely captured blanking or a stuck data bus; revisit polarity, PCLK edge, and D0-D7 wiring.

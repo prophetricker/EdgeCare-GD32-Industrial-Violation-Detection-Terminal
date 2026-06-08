@@ -19,5 +19,13 @@ typedef struct {
 void edgecare_preprocess_gray96_from_yuyv(const uint8_t *yuyv_frame,
                                           uint8_t *gray96,
                                           edgecare_preprocess_gray96_stats_t *stats);
+void edgecare_preprocess_gray96_from_yuv422_phase(const uint8_t *yuv422_frame,
+                                                  uint8_t y_phase,
+                                                  uint8_t *gray96,
+                                                  edgecare_preprocess_gray96_stats_t *stats);
+void edgecare_preprocess_byte_plane_from_frame(const uint8_t *frame,
+                                               uint8_t byte_phase,
+                                               uint8_t *plane,
+                                               edgecare_preprocess_gray96_stats_t *stats);
 
 #endif /* EDGECARE_PREPROCESS_H */
