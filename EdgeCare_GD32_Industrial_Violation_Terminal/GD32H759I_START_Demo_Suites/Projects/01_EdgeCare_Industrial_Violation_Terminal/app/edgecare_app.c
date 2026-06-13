@@ -65,6 +65,40 @@ static void edgecare_alarm_set(uint8_t active)
 }
 
 #if EDGECARE_ENABLE_GRAY96_DUMP
+static void edgecare_compute_image_stats(const uint8_t *image,
+                                         uint32_t bytes,
+                                         edgecare_preprocess_gray96_stats_t *stats)
+{
+    uint32_t i;
+    uint32_t checksum = 0U;
+    uint32_t sum = 0U;
+
+    stats->min_value = 0xFFU;
+    stats->max_value = 0U;
+
+    for(i = 0U; i < bytes; i++) {
+        uint8_t value = image[i];
+
+        sum += value;
+        checksum ^= ((uint32_t)value << ((i & 3U) * 8U));
+        checksum = (checksum << 3U) | (checksum >> 29U);
+
+        if(value < stats->min_value) {
+            stats->min_value = value;
+        }
+        if(value > stats->max_value) {
+            stats->max_value = value;
+        }
+    }
+
+    stats->mean = (0U == bytes) ? 0U : (sum / bytes);
+    stats->checksum = checksum;
+    stats->center[0] = (bytes > 0U) ? image[bytes / 2U] : 0U;
+    stats->center[1] = (bytes > 1U) ? image[(bytes / 2U) + 1U] : 0U;
+    stats->center[2] = (bytes > 2U) ? image[(bytes / 2U) + 2U] : 0U;
+    stats->center[3] = (bytes > 3U) ? image[(bytes / 2U) + 3U] : 0U;
+}
+
 static void edgecare_dump_image(const char *kind,
                                 const char *variant,
                                 const uint8_t *image,
@@ -121,11 +155,41 @@ static void edgecare_preprocess_gray96_probe(void)
     edgecare_preprocess_gray96_stats_t stats;
     edgecare_infer_result_t infer_result;
 
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_RGB565 && !EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
+    edgecare_preprocess_gray96_from_rgb565(bsp_camera_ov5640_frame(),
+                                           g_model_input_gray,
+                                           &stats);
+#elif (EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV || EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF) && !EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
     edgecare_preprocess_gray96_from_yuyv(bsp_camera_ov5640_frame(),
                                          g_model_input_gray,
                                          &stats);
+#else
+    edgecare_preprocess_gray96_from_raw8_stride(bsp_camera_ov5640_frame(),
+                                                CAMERA_RAW8_BYTE_STRIDE,
+                                                CAMERA_RAW8_BYTE_PHASE,
+                                                g_model_input_gray,
+                                                &stats);
+#endif
 
-    printf("preprocess_gray96: source=YUYV_Y qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
+    printf("preprocess_gray96: source=OV5640_DVP_PATTERN_NOT_REAL_SCENE scale=raw qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_RGB565
+    printf("preprocess_gray96: source=OV5640_RGB565 scale=raw qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV
+#if EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION
+    printf("preprocess_gray96: source=OV5640_ISP_YUV422_Y02 scale=lshift2 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#else
+    printf("preprocess_gray96: source=OV5640_ISP_YUV422_Y02 scale=raw qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#endif
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
+#if EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION
+    printf("preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=lshift2 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#else
+    printf("preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=raw qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#endif
+#else
+    printf("preprocess_gray96: source=OV5640_SNR_RAW8 scale=raw qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#endif
            (unsigned int)CAMERA_FRAME_WIDTH,
            (unsigned int)CAMERA_FRAME_HEIGHT,
            (unsigned int)MODEL_INPUT_WIDTH,
@@ -141,15 +205,61 @@ static void edgecare_preprocess_gray96_probe(void)
            stats.center[3]);
 
 #if EDGECARE_ENABLE_GRAY96_DUMP
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
+    edgecare_preprocess_gray96_stats_t frame_stats;
+
+    edgecare_compute_image_stats(bsp_camera_ov5640_frame(), CAMERA_CAPTURE_BYTES, &frame_stats);
+    edgecare_dump_gray96("dvp_pattern_stride2_phase0", g_model_input_gray, &stats);
+    edgecare_dump_image("frame_bytes",
+                        "dvp_pattern_640x240",
+                        bsp_camera_ov5640_frame(),
+                        CAMERA_FRAME_WIDTH * CAMERA_FRAME_BPP,
+                        CAMERA_FRAME_HEIGHT,
+                        CAMERA_CAPTURE_BYTES,
+                        &frame_stats);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV
     edgecare_dump_gray96("yuv422_y02", g_model_input_gray, &stats);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
+    edgecare_dump_gray96("jpeg_to_yuv_ref_y02", g_model_input_gray, &stats);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_RGB565
+    edgecare_dump_gray96("rgb565_luma", g_model_input_gray, &stats);
+#else
+    edgecare_dump_gray96("raw8_stride2_phase0", g_model_input_gray, &stats);
+#endif
 #if EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS
     edgecare_preprocess_gray96_stats_t variant_stats;
 
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
+    edgecare_preprocess_gray96_from_raw8_stride(bsp_camera_ov5640_frame(),
+                                                CAMERA_RAW8_BYTE_STRIDE,
+                                                1U,
+                                                g_debug_gray_variant,
+                                                &variant_stats);
+    printf("preprocess_gray96_variant: source=OV5640_DVP_PATTERN_STRIDE2_PHASE1_NOT_REAL_SCENE qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+           (unsigned int)CAMERA_FRAME_WIDTH,
+           (unsigned int)CAMERA_FRAME_HEIGHT,
+           (unsigned int)MODEL_INPUT_WIDTH,
+           (unsigned int)MODEL_INPUT_HEIGHT,
+           (unsigned long)MODEL_INPUT_BYTES,
+           variant_stats.min_value,
+           variant_stats.max_value,
+           (unsigned long)variant_stats.mean,
+           (unsigned long)variant_stats.checksum,
+           variant_stats.center[0],
+           variant_stats.center[1],
+           variant_stats.center[2],
+           variant_stats.center[3]);
+    edgecare_dump_gray96("dvp_pattern_stride2_phase1", g_debug_gray_variant, &variant_stats);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV || EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
     edgecare_preprocess_gray96_from_yuv422_phase(bsp_camera_ov5640_frame(),
                                                  1U,
                                                  g_debug_gray_variant,
                                                  &variant_stats);
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
+    printf("preprocess_gray96_variant: source=OV5640_JPEG_TO_YUV_REF_Y13 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#else
     printf("preprocess_gray96_variant: source=YUV422_Y13 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+#endif
            (unsigned int)CAMERA_FRAME_WIDTH,
            (unsigned int)CAMERA_FRAME_HEIGHT,
            (unsigned int)MODEL_INPUT_WIDTH,
@@ -164,6 +274,28 @@ static void edgecare_preprocess_gray96_probe(void)
            variant_stats.center[2],
            variant_stats.center[3]);
     edgecare_dump_gray96("yuv422_y13", g_debug_gray_variant, &variant_stats);
+#else
+    edgecare_preprocess_gray96_from_raw8_stride(bsp_camera_ov5640_frame(),
+                                                CAMERA_RAW8_BYTE_STRIDE,
+                                                1U,
+                                                g_debug_gray_variant,
+                                                &variant_stats);
+    printf("preprocess_gray96_variant: source=OV5640_SNR_RAW8_STRIDE2_PHASE1 qvga=%ux%u out=%ux%u bytes=%lu min=%u max=%u mean=%lu checksum=0x%08lX center=%u,%u,%u,%u\r\n",
+           (unsigned int)CAMERA_FRAME_WIDTH,
+           (unsigned int)CAMERA_FRAME_HEIGHT,
+           (unsigned int)MODEL_INPUT_WIDTH,
+           (unsigned int)MODEL_INPUT_HEIGHT,
+           (unsigned long)MODEL_INPUT_BYTES,
+           variant_stats.min_value,
+           variant_stats.max_value,
+           (unsigned long)variant_stats.mean,
+           (unsigned long)variant_stats.checksum,
+           variant_stats.center[0],
+           variant_stats.center[1],
+           variant_stats.center[2],
+           variant_stats.center[3]);
+    edgecare_dump_gray96("raw8_stride2_phase1", g_debug_gray_variant, &variant_stats);
+#endif
 #endif
 #if EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP
     {

@@ -66,6 +66,58 @@ Keep these in Keil for now:
 
 This keeps the workflow stable while the OpenOCD/GD-Link flash path is uncertain for GD32H759.
 
+## J-Link Automation
+
+J-Link is now validated for the external SWD header path:
+
+- `J-Link SWDIO -> board SWDIO`
+- `J-Link SWCLK -> board SWCLK`
+- `J-Link GND -> board GND`
+- VTref is read from the target board, measured around `3.22 V` during probe.
+
+Safe read-only probe:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_probe.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_probe.ps1 -Device GD32H759IMT6
+```
+
+Reset and capture startup serial logs without touching the board:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_reset_capture_serial.ps1
+```
+
+This opens `COM8` at `115200 8N1`, issues a J-Link software reset/run, captures startup logs, saves a copy under `.embeddedskills/logs/serial/`, and prints the key `camera_*` lines. Close VS Code Serial Monitor first if it already owns `COM8`.
+
+Important device-name rule:
+
+- Keil project device name: `GD32H759IM`
+- SEGGER/J-Link device name verified on the bench: `GD32H759IMT6`
+- Do not use Keil's shorter `GD32H759IM` as the J-Link `-Device` value; it triggered a SEGGER module error during testing.
+- `Cortex-M7` is acceptable for read-only core probing, but not for internal Flash programming.
+
+J-Link flash script is intentionally explicit:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_flash_edgecare.ps1
+```
+
+The command above is a dry run. It only prints the target AXF and device settings. To actually program the target, use `-Flash` only after confirming the latest Keil build is clean:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify_edgecare.ps1
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_flash_edgecare.ps1 -Flash
+```
+
+For GDB-style debugging, start the local J-Link GDB server:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_gdbserver_edgecare.ps1
+```
+
+It defaults to `GD32H759IMT6`, SWD, `4000 kHz`, GDB port `2331`, SWO port `2332`, and telnet port `2333`.
+
 ## Codex Responsibilities
 
 Codex should:

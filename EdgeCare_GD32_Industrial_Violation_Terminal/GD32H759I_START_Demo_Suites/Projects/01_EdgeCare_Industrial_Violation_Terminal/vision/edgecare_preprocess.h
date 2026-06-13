@@ -23,6 +23,14 @@ void edgecare_preprocess_gray96_from_yuv422_phase(const uint8_t *yuv422_frame,
                                                   uint8_t y_phase,
                                                   uint8_t *gray96,
                                                   edgecare_preprocess_gray96_stats_t *stats);
+void edgecare_preprocess_gray96_from_raw8_stride(const uint8_t *raw_frame,
+                                                 uint32_t byte_stride,
+                                                 uint8_t byte_phase,
+                                                 uint8_t *gray96,
+                                                 edgecare_preprocess_gray96_stats_t *stats);
+void edgecare_preprocess_gray96_from_rgb565(const uint8_t *rgb565_frame,
+                                            uint8_t *gray96,
+                                            edgecare_preprocess_gray96_stats_t *stats);
 void edgecare_preprocess_byte_plane_from_frame(const uint8_t *frame,
                                                uint8_t byte_phase,
                                                uint8_t *plane,

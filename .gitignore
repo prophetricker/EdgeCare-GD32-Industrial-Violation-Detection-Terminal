@@ -17,6 +17,10 @@ old-build-check.log
 .embeddedskills/build/
 .embeddedskills/logs/
 .embeddedskills/state.json
+.embeddedskills/*
+!.embeddedskills/
+!.embeddedskills/config.json
+.playwright-cli/
 
 # Keil MDK generated files
 **/Objects/
@@ -35,6 +39,8 @@ old-build-check.log
 **/*.hex
 **/*.map
 **/*.htm
+**/JLinkLog.txt
+**/JLinkSettings.ini
 
 # Heavy downloaded documentation, SDKs, archives, and extracted tools.
 # Keep lightweight project notes under doc/*.md tracked by explicit git add.

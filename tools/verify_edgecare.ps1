@@ -52,6 +52,21 @@ try {
         }
     }
 
+    Invoke-Step "camera sync diagnostic static test" {
+        py .\tools\test_camera_sync_diag_static.py
+        Assert-LastExitCode "camera sync diagnostic static test"
+    }
+
+    Invoke-Step "J-Link script static test" {
+        py .\tools\test_jlink_scripts_static.py
+        Assert-LastExitCode "J-Link script static test"
+    }
+
+    Invoke-Step "gray96 collection parser test" {
+        py .\tools\test_collect_gray96_serial.py
+        Assert-LastExitCode "gray96 collection parser test"
+    }
+
     Invoke-Step "Keil build" {
         powershell.exe -ExecutionPolicy Bypass -File $BuildScript
         Assert-LastExitCode "Keil build"

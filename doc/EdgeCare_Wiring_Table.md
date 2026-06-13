@@ -1,6 +1,6 @@
 # EdgeCare Wiring Table
 
-Updated: 2026-06-08
+Updated: 2026-06-09
 
 This file is the quick wiring checklist for the current `GD32H759I-START` EdgeCare prototype. For detailed pin rationale and bring-up notes, read `doc/EdgeCare_Hardware_Pinout.md`.
 
@@ -134,19 +134,34 @@ camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PE4 D5=PB
 
 The current firmware is still a camera diagnostic build:
 
+- OV5640 init defaults to the full app-note VGA YUV reference table plus QVGA output override; startup logs should show `camera_init_path=full_reference_vga_then_qvga`.
 - OV5640 ISP color bar test pattern is enabled by default.
 - DVP data order is swept to identify the correct byte/bit order.
+- OV5640 sync output sweep is enabled: `camera_sync_sweep[...]` temporarily forces HREF/VSYNC pad values through `0x3017/0x301D/0x301A`.
+- OV5640 timing sweep is enabled: `camera_timing_sweep[...]` tries DVP timing/sync register variants through `0x471B/0x471D/0x4730/0x4740`; a candidate is kept only if it reaches the line-sync threshold.
 - `byte_plane` dumps are diagnostic images, not training data.
 - Do not start real dataset collection until the diagnostic image is visually valid.
 
-Next camera test command:
+For the next timing-output test, keep this standard wiring before flashing/resetting:
 
-```powershell
-cd "D:\MyProject\GRADUATE ELECTONICS DESIGN CONTEST"
-py .\tools\collect_gray96_serial.py --label empty --kind byte_plane --count 4 --variant any --port COM8 --max-wait-sec 90
+```text
+PCLK -> PA6
+HERF/HREF -> PA4
+SYNC -> PB7
 ```
 
-Open the script first, then press RESET on the board.
+Do not probe candidate pins during this test. The latest forced-output sweep already proved that `HERF/HREF -> PA4` reaches the OV5640 HREF pad and `SYNC -> PB7` reaches the OV5640 VSYNC pad.
+
+After flashing the latest build, open Serial Monitor, press RESET, and copy only these lines:
+
+```text
+camera_init: ... camera_init_path=full_reference_vga_then_qvga
+camera_timing_sweep[...]
+camera_timing_sweep_best: ...
+camera_dvp_regs[after_timing_sweep]: ...
+camera_dvp_ext_regs[after_timing_sweep]: ...
+camera_capture[pclk_...]: ...
+```
 
 ## 7. VW553 Upload Module
 
