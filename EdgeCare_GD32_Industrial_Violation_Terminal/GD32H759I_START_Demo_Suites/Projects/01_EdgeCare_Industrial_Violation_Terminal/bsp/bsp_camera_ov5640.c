@@ -782,7 +782,7 @@ static void camera_sccb_init(void)
     gpio_bit_set(CAMERA_CTRL_GPIO_PORT, CAMERA_RES_PIN);
     delay_1ms(20U);
 
-    printf("camera_sccb: SCL=PB10 SDA=PB11 RES=PD0 PWON=PD1 PWON_active_high=%u\r\n",
+    printf("camera_sccb: SCL=PF1 SDA=PF0 RES=PD0 PWON=PD1 PWON_active_high=%u\r\n",
            (unsigned int)EDGECARE_CAMERA_PWON_ACTIVE_HIGH);
 
     i2c_deinit(CAMERA_SCCB);
@@ -1024,7 +1024,7 @@ uint8_t bsp_camera_ov5640_id_probe(void)
                ov5640_id_h, ov5640_id_l);
         ov5640_detected = ((0x56U == ov5640_id_h) && (0x40U == ov5640_id_l)) ? 1U : 0U;
     } else {
-        printf("camera_id: OV5640 ID read timeout/no ack on PB10/PB11\r\n");
+        printf("camera_id: OV5640 ID read timeout/no ack on PF1/PF0\r\n");
     }
 
     if((0U == ov5640_detected) &&
@@ -1686,7 +1686,7 @@ static uint8_t camera_raw_data_bus_read(void)
     if(SET == gpio_input_bit_get(GPIOG, GPIO_PIN_11)) {
         value |= 0x08U;
     }
-    if(SET == gpio_input_bit_get(GPIOE, GPIO_PIN_4)) {
+    if(SET == gpio_input_bit_get(GPIOC, GPIO_PIN_11)) {
         value |= 0x10U;
     }
     if(SET == gpio_input_bit_get(GPIOB, GPIO_PIN_6)) {
@@ -1695,7 +1695,7 @@ static uint8_t camera_raw_data_bus_read(void)
     if(SET == gpio_input_bit_get(GPIOE, GPIO_PIN_5)) {
         value |= 0x40U;
     }
-    if(SET == gpio_input_bit_get(GPIOE, GPIO_PIN_6)) {
+    if(SET == gpio_input_bit_get(GPIOB, GPIO_PIN_9)) {
         value |= 0x80U;
     }
 
@@ -1709,9 +1709,9 @@ static void camera_data_bus_gpio_input_init(uint32_t pupd)
     rcu_periph_clock_enable(RCU_GPIOE);
     rcu_periph_clock_enable(RCU_GPIOG);
 
-    gpio_mode_set(GPIOB, GPIO_MODE_INPUT, pupd, GPIO_PIN_6);
-    gpio_mode_set(GPIOC, GPIO_MODE_INPUT, pupd, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8);
-    gpio_mode_set(GPIOE, GPIO_MODE_INPUT, pupd, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6);
+    gpio_mode_set(GPIOB, GPIO_MODE_INPUT, pupd, GPIO_PIN_6 | GPIO_PIN_9);
+    gpio_mode_set(GPIOC, GPIO_MODE_INPUT, pupd, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_11);
+    gpio_mode_set(GPIOE, GPIO_MODE_INPUT, pupd, GPIO_PIN_5);
     gpio_mode_set(GPIOG, GPIO_MODE_INPUT, pupd, GPIO_PIN_11);
 }
 
@@ -2013,9 +2013,9 @@ static void camera_raw_pclk_sample_probe_tag(const char *source_tag,
     rcu_periph_clock_enable(RCU_GPIOG);
 
     gpio_mode_set(GPIOA, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_4 | GPIO_PIN_6);
-    gpio_mode_set(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7);
-    gpio_mode_set(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8);
-    gpio_mode_set(GPIOE, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6);
+    gpio_mode_set(GPIOB, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_9);
+    gpio_mode_set(GPIOC, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_11);
+    gpio_mode_set(GPIOE, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_5);
     gpio_mode_set(GPIOG, GPIO_MODE_INPUT, GPIO_PUPD_NONE, GPIO_PIN_11);
 
     pclk_prev = gpio_input_bit_get(GPIOA, GPIO_PIN_6);
@@ -2353,22 +2353,21 @@ static void camera_dci_gpio_init(void)
     gpio_mode_set(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_7);
     gpio_output_options_set(GPIOB, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ, GPIO_PIN_7);
 
-    /* D0(PC6), D1(PC7), D2(PC8), D3(PG11), D4(PE4), D5(PB6), D6(PE5), D7(PE6). */
-    gpio_af_set(GPIOC, GPIO_AF_13, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8);
+    /* D0(PC6), D1(PC7), D2(PC8), D3(PG11), D4(PC11), D5(PB6), D6(PE5), D7(PB9). */
+    gpio_af_set(GPIOC, GPIO_AF_13, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_11);
     gpio_af_set(GPIOG, GPIO_AF_13, GPIO_PIN_11);
-    gpio_af_set(GPIOE, GPIO_AF_13, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6);
-    gpio_af_set(GPIOB, GPIO_AF_13, GPIO_PIN_6);
+    gpio_af_set(GPIOE, GPIO_AF_13, GPIO_PIN_5);
+    gpio_af_set(GPIOB, GPIO_AF_13, GPIO_PIN_6 | GPIO_PIN_9);
 
-    gpio_mode_set(GPIOC, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8);
+    gpio_mode_set(GPIOC, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_11);
     gpio_output_options_set(GPIOC, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ,
-                            GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8);
+                            GPIO_PIN_6 | GPIO_PIN_7 | GPIO_PIN_8 | GPIO_PIN_11);
     gpio_mode_set(GPIOG, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_11);
     gpio_output_options_set(GPIOG, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ, GPIO_PIN_11);
-    gpio_mode_set(GPIOE, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6);
-    gpio_output_options_set(GPIOE, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ,
-                            GPIO_PIN_4 | GPIO_PIN_5 | GPIO_PIN_6);
-    gpio_mode_set(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_6);
-    gpio_output_options_set(GPIOB, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ, GPIO_PIN_6);
+    gpio_mode_set(GPIOE, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_5);
+    gpio_output_options_set(GPIOE, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ, GPIO_PIN_5);
+    gpio_mode_set(GPIOB, GPIO_MODE_AF, GPIO_PUPD_NONE, GPIO_PIN_6 | GPIO_PIN_9);
+    gpio_output_options_set(GPIOB, GPIO_OTYPE_PP, GPIO_OSPEED_100_220MHZ, GPIO_PIN_6 | GPIO_PIN_9);
 }
 
 static void camera_dci_dma_init(uint32_t capture_mode,
@@ -3339,6 +3338,193 @@ static void camera_ov5640_raw_data_order_capture_sweep_probe(void)
 #endif
 }
 
+#if EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP
+static void camera_jpeg_to_yuv_byte_scale_log(const char *tag, uint8_t data_order);
+#endif
+
+static void camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe(void)
+{
+#if EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP
+    static const uint8_t data_orders[] = {
+        0x00U,
+        0x01U,
+        0x02U,
+        0x03U,
+        0x04U,
+        0x05U,
+        0x06U,
+        0x07U
+    };
+    static const char *const tags[] = {
+        "jpeg_yuv_order_00",
+        "jpeg_yuv_order_01",
+        "jpeg_yuv_order_02",
+        "jpeg_yuv_order_03",
+        "jpeg_yuv_order_04",
+        "jpeg_yuv_order_05",
+        "jpeg_yuv_order_06",
+        "jpeg_yuv_order_07"
+    };
+    camera_frame_quality_t quality = {0U, 0U, 0U, 0U, 0U, 0U};
+    uint32_t i;
+    uint8_t capture_ok;
+
+    printf("camera_jpeg_to_yuv_data_order_capture_sweep: enabled source=OV5640_JPEG_TO_YUV_REF timing=471d00_474020 dci=pclk_rising_hs_blank_low_vs_blank_high orders=0x00..0x07 note=test_byte_scale_vs_4745_mapping\r\n");
+    camera_apply_jpeg_to_yuv_ref_capture_path();
+    for(i = 0U; i < (sizeof(data_orders) / sizeof(data_orders[0])); i++) {
+        capture_ok = edgecare_camera_capture_attempt(tags[i],
+                                                     DCI_CK_POLARITY_RISING,
+                                                     DCI_HSYNC_POLARITY_LOW,
+                                                     DCI_VSYNC_POLARITY_HIGH,
+                                                     data_orders[i],
+                                                     &quality);
+        if(0U != capture_ok) {
+            camera_jpeg_to_yuv_byte_scale_log(tags[i], data_orders[i]);
+        } else {
+            printf("camera_byte_scale[%s]: order=0x%02X skipped=capture_timeout\r\n",
+                   tags[i],
+                   data_orders[i]);
+        }
+    }
+    (void)camera_sccb_write_reg16(0x4745U, EDGECARE_CAMERA_DATA_ORDER_DEFAULT);
+    delay_1ms(20U);
+    camera_isp_path_regs_log("jpeg_to_yuv_data_order_capture_sweep_restored");
+#endif
+}
+
+#if EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP
+typedef struct {
+    uint8_t raw_min;
+    uint8_t raw_max;
+    uint32_t raw_mean;
+    uint8_t shifted_min;
+    uint8_t shifted_max;
+    uint32_t shifted_mean;
+} camera_byte_phase_stats_t;
+
+static uint8_t camera_byte_lshift2(uint8_t value)
+{
+    return (value > 63U) ? 255U : (uint8_t)(value << 2U);
+}
+
+static void camera_byte_phase_stats(uint32_t phase, camera_byte_phase_stats_t *stats)
+{
+    const uint8_t *bytes = (const uint8_t *)g_camera_capture_buffer;
+    uint32_t offset;
+    uint32_t count = 0U;
+    uint32_t raw_sum = 0U;
+    uint32_t shifted_sum = 0U;
+    uint8_t raw_min = 0xFFU;
+    uint8_t raw_max = 0x00U;
+    uint8_t shifted_min = 0xFFU;
+    uint8_t shifted_max = 0x00U;
+    uint8_t raw;
+    uint8_t shifted;
+
+    for(offset = phase; offset < CAMERA_CAPTURE_BYTES; offset += 4U) {
+        raw = bytes[offset];
+        shifted = camera_byte_lshift2(raw);
+
+        if(raw < raw_min) {
+            raw_min = raw;
+        }
+        if(raw > raw_max) {
+            raw_max = raw;
+        }
+        if(shifted < shifted_min) {
+            shifted_min = shifted;
+        }
+        if(shifted > shifted_max) {
+            shifted_max = shifted;
+        }
+        raw_sum += raw;
+        shifted_sum += shifted;
+        count++;
+    }
+
+    if(0U == count) {
+        stats->raw_min = 0U;
+        stats->raw_max = 0U;
+        stats->raw_mean = 0U;
+        stats->shifted_min = 0U;
+        stats->shifted_max = 0U;
+        stats->shifted_mean = 0U;
+        return;
+    }
+
+    stats->raw_min = raw_min;
+    stats->raw_max = raw_max;
+    stats->raw_mean = raw_sum / count;
+    stats->shifted_min = shifted_min;
+    stats->shifted_max = shifted_max;
+    stats->shifted_mean = shifted_sum / count;
+}
+
+static uint8_t camera_byte_scale_is_right_shift2_like(const camera_byte_phase_stats_t *phase0,
+                                                      const camera_byte_phase_stats_t *phase1,
+                                                      const camera_byte_phase_stats_t *phase2,
+                                                      const camera_byte_phase_stats_t *phase3)
+{
+    uint8_t y_low_range = ((phase0->raw_max <= 64U) &&
+                           (phase2->raw_max <= 64U) &&
+                           (((phase0->raw_mean > phase2->raw_mean) ? phase0->raw_mean : phase2->raw_mean) >= 8U)) ? 1U : 0U;
+    uint8_t chroma_near_32 = ((phase1->raw_mean >= 24U) &&
+                              (phase1->raw_mean <= 40U) &&
+                              (phase3->raw_mean >= 24U) &&
+                              (phase3->raw_mean <= 40U) &&
+                              (phase1->raw_max <= 64U) &&
+                              (phase3->raw_max <= 64U)) ? 1U : 0U;
+    uint8_t chroma_stable = (((uint32_t)phase1->raw_max - (uint32_t)phase1->raw_min <= 16U) &&
+                             ((uint32_t)phase3->raw_max - (uint32_t)phase3->raw_min <= 16U)) ? 1U : 0U;
+
+    return (0U != y_low_range && 0U != chroma_near_32 && 0U != chroma_stable) ? 1U : 0U;
+}
+
+static void camera_jpeg_to_yuv_byte_scale_log(const char *tag, uint8_t data_order)
+{
+    camera_byte_phase_stats_t phase0;
+    camera_byte_phase_stats_t phase1;
+    camera_byte_phase_stats_t phase2;
+    camera_byte_phase_stats_t phase3;
+    uint8_t right_shift2_like;
+
+    camera_byte_phase_stats(0U, &phase0);
+    camera_byte_phase_stats(1U, &phase1);
+    camera_byte_phase_stats(2U, &phase2);
+    camera_byte_phase_stats(3U, &phase3);
+    right_shift2_like = camera_byte_scale_is_right_shift2_like(&phase0, &phase1, &phase2, &phase3);
+
+    printf("camera_byte_scale[%s]: order=0x%02X hint=%s p0_raw=%u,%u,%lu p0_lshift2=%u,%u,%lu p1_raw=%u,%u,%lu p1_lshift2=%u,%u,%lu p2_raw=%u,%u,%lu p2_lshift2=%u,%u,%lu p3_raw=%u,%u,%lu p3_lshift2=%u,%u,%lu\r\n",
+           tag,
+           data_order,
+           (0U != right_shift2_like) ? "right_shift2_like" : "not_right_shift2_like",
+           phase0.raw_min,
+           phase0.raw_max,
+           (unsigned long)phase0.raw_mean,
+           phase0.shifted_min,
+           phase0.shifted_max,
+           (unsigned long)phase0.shifted_mean,
+           phase1.raw_min,
+           phase1.raw_max,
+           (unsigned long)phase1.raw_mean,
+           phase1.shifted_min,
+           phase1.shifted_max,
+           (unsigned long)phase1.shifted_mean,
+           phase2.raw_min,
+           phase2.raw_max,
+           (unsigned long)phase2.raw_mean,
+           phase2.shifted_min,
+           phase2.shifted_max,
+           (unsigned long)phase2.shifted_mean,
+           phase3.raw_min,
+           phase3.raw_max,
+           (unsigned long)phase3.raw_mean,
+           phase3.shifted_min,
+           phase3.shifted_max,
+           (unsigned long)phase3.shifted_mean);
+}
+#endif
+
 static void camera_output_mux_capture(const char *tag,
                                       const char *raw_tag,
                                       const char *all_tag,
@@ -3881,7 +4067,7 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
 {
     camera_frame_quality_t normal_quality = {0U, 0U, 0U, 0U, 0U, 0U};
 
-    printf("camera_capture_probe: start qvga=%ux%u bytes=%lu words=%lu timeout=%lu test_pattern=%u mode=%u slow_pclk=%u pclkdiv=0x%02X snapshot=%u sweep=%u data_order_default=0x%02X data_order_sweep=%u data_order_source_sweep=%u raw_order_capture_sweep=%u\r\n",
+    printf("camera_capture_probe: start qvga=%ux%u bytes=%lu words=%lu timeout=%lu test_pattern=%u mode=%u slow_pclk=%u pclkdiv=0x%02X snapshot=%u sweep=%u data_order_default=0x%02X data_order_sweep=%u data_order_source_sweep=%u raw_order_capture_sweep=%u jpeg_yuv_order_capture_sweep=%u\r\n",
            (unsigned int)CAMERA_FRAME_WIDTH,
            (unsigned int)CAMERA_FRAME_HEIGHT,
            (unsigned long)CAMERA_CAPTURE_BYTES,
@@ -3896,8 +4082,9 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
            (unsigned int)EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
            (unsigned int)EDGECARE_ENABLE_CAMERA_DATA_ORDER_SWEEP,
            (unsigned int)EDGECARE_ENABLE_CAMERA_DATA_ORDER_SOURCE_SWEEP,
-           (unsigned int)EDGECARE_ENABLE_CAMERA_RAW_DATA_ORDER_CAPTURE_SWEEP);
-    printf("camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PE4 D5=PB6 D6=PE5 D7=PE6\r\n");
+           (unsigned int)EDGECARE_ENABLE_CAMERA_RAW_DATA_ORDER_CAPTURE_SWEEP,
+           (unsigned int)EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP);
+    printf("camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PC11 D5=PB6 D6=PE5 D7=PB9\r\n");
     camera_log_dvp_registers("before_capture");
     camera_dvp_gpio_activity_probe();
 #if EDGECARE_ENABLE_CAMERA_SYNC_TIMING_DIAGS
@@ -3917,6 +4104,7 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
     camera_pattern_source_sweep_probe();
     camera_ov5640_data_order_source_sweep_probe();
     camera_ov5640_raw_data_order_capture_sweep_probe();
+    camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe();
     camera_ov5640_output_mux_sweep_probe();
     camera_ov5640_raw_dci_matrix_probe();
     camera_ov5640_isp_path_sweep_probe();

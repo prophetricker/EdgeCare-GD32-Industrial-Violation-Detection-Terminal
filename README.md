@@ -6,14 +6,15 @@ EdgeCare 是面向研电赛兆易创新 Endpoint AI 方向的工业危险区域�
 
 ## 当前状态
 
-截至 2026-06-08：
+截至 2026-06-16：
 
 - Keil MDK 工程可编译，验证结果为 `0 Error(s), 0 Warning(s)`。
 - USART0 日志、LD2410 GPIO 触发和低电平报警输出已验证。
 - OV5640 SCCB ID 已读到 `0x56 0x40`。
 - DCI/DMA 已能取得完整 `320x240 YUV422` 帧。
-- 已实现 `YUV422 -> 96x96 gray8` 预处理和串口样本导出。
-- 当前正在排查 DVP 数据位序、PCLK 边沿和图像有效性，暂未开始正式数据集训练。
+- 当前可用相机路径为 `OV5640_JPEG_TO_YUV_REF + DCI rising + 0x4745=0x00`。
+- 已实现 `YUV422 -> 96x96 gray8` 预处理和串口样本导出，当前可开始小规模 raw `gray96` 数据集采集。
+- 彩色/YUV RGB 图像仍有伪彩和噪声，当前训练数据以 `96x96 gray8` 为准，不采集彩色照片。
 - `edgecare_infer()` 仍是明确标注的统计占位实现，不是真实 AI 模型。
 
 ## 系统链路
@@ -44,7 +45,8 @@ QVGA YUV422 -> gray96 -> edgecare_infer()
 - [硬件引脚表](doc/EdgeCare_Hardware_Pinout.md)：GD32H759、雷达、报警灯和摄像头接线。
 - [快速接线表](doc/EdgeCare_Wiring_Table.md)：按模块列出每根线的连接方式。
 - [相机调试记录](doc/EdgeCare_Camera_Bringup_Notes.md)：OV5640、DCI/DMA 和诊断日志解释。
-- [数据采集流程](doc/EdgeCare_Data_Collection.md)：`gray96` 样本导出和有效性检查。
+- [数据集采集全流程手册](doc/EdgeCare_Dataset_Collection_Manual_CN.md)：从固件配置、烧录、串口采集到质检的中文完整流程。
+- [数据采集流程](doc/EdgeCare_Data_Collection.md)：`gray96` 样本导出和相机诊断细节。
 - [开发工作流](doc/EdgeCare_Development_Workflow.md)：VS Code、Codex、Keil 和 Git 流程。
 - [固件代码规范](CODING_STYLE.md)：模块边界和嵌入式 C 规则。
 - [场景搭建指南](doc/EdgeCare_Scene_Setup_Guide.md)：队友当前使用的危险区场景准备清单。
@@ -98,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_edgecare.ps1
 feature/firmware-module-refactor
 ```
 
-队友当前只负责危险区演示场景搭建和拍摄条件记录，暂不修改固件、模型或数据采集脚本。正式采集训练数据前，必须先确认 OV5640 输出能还原真实画面。
+队友当前只负责危险区演示场景搭建和拍摄条件记录，暂不修改固件、模型或数据采集脚本。正式训练数据使用当前 raw `gray96` 采集链路；彩色照片质量不作为本阶段阻塞项。
 
 仓库不会提交：
 

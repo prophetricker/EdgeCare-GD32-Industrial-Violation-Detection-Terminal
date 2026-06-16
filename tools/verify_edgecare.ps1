@@ -58,13 +58,29 @@ try {
     }
 
     Invoke-Step "J-Link script static test" {
+        Write-Host "Includes jlink_swd_health_check.ps1 coverage."
         py .\tools\test_jlink_scripts_static.py
         Assert-LastExitCode "J-Link script static test"
+    }
+
+    Invoke-Step "camera diagnostic build script static test" {
+        py .\tools\test_camera_diag_build_static.py
+        Assert-LastExitCode "camera diagnostic build script static test"
     }
 
     Invoke-Step "gray96 collection parser test" {
         py .\tools\test_collect_gray96_serial.py
         Assert-LastExitCode "gray96 collection parser test"
+    }
+
+    Invoke-Step "camera byte-scale analyzer test" {
+        py .\tools\test_analyze_camera_byte_scale.py
+        Assert-LastExitCode "camera byte-scale analyzer test"
+    }
+
+    Invoke-Step "camera byte-scale log analyzer test" {
+        py .\tools\test_analyze_camera_byte_scale_log.py
+        Assert-LastExitCode "camera byte-scale log analyzer test"
     }
 
     Invoke-Step "Keil build" {

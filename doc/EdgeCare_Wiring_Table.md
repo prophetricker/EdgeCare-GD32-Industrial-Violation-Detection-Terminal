@@ -1,6 +1,6 @@
 # EdgeCare Wiring Table
 
-Updated: 2026-06-09
+Updated: 2026-06-16
 
 This file is the quick wiring checklist for the current `GD32H759I-START` EdgeCare prototype. For detailed pin rationale and bring-up notes, read `doc/EdgeCare_Hardware_Pinout.md`.
 
@@ -86,29 +86,29 @@ person enters -> radar=1 -> alarm=1
 person leaves -> about 1 s radar hold -> radar=0 -> alarm=0
 ```
 
-## 4. OV5640 Camera Minimal SCCB Test
+## 4. OV5640 Camera SCCB and Control
 
-Connect only these wires first. Do not connect the full DVP bus until the ID read works.
+For the current dataset-collection build, keep these wires connected. For a brand-new board bring-up, these can still be connected first before adding the DVP bus.
 
 | Camera module | GD32H759I-START | Direction | Required | Notes |
 | --- | --- | --- | --- | --- |
 | `3V3` | `3V3` | power | yes | Do not use 5V |
 | `GND` | `GND` | common | yes | Must share ground |
-| `SCL` | `PB10 / I2C1_SCL` | GD32 -> camera | yes | SCCB/I2C clock |
-| `SDA` | `PB11 / I2C1_SDA` | bidirectional | yes | SCCB/I2C data |
+| `SCL` | `PF1 / I2C1_SCL` | GD32 -> camera | yes | Remapped after `PB11` header damage |
+| `SDA` | `PF0 / I2C1_SDA` | bidirectional | yes | Remapped after `PB11` header damage |
 | `RES` | `PD0` | GD32 -> camera | yes | Camera reset |
 | `PWON` / `PWDN` | `PD1` | GD32 -> camera | yes | Camera power-down / enable control |
 
 Expected boot log:
 
 ```text
-camera_sccb: SCL=PB10 SDA=PB11 RES=PD0 PWON=PD1
+camera_sccb: SCL=PF1 SDA=PF0 RES=PD0 PWON=PD1
 camera_id: ov5640_regs[0x300A,0x300B]=0x56 0x40
 ```
 
 ## 5. OV5640 Full DVP Camera Bus
 
-Connect these only after the SCCB ID test succeeds.
+Keep these wired for the current raw `gray96` dataset path.
 
 | Camera module | GD32H759I-START | START header | Direction | Notes |
 | --- | --- | --- | --- | --- |
@@ -119,30 +119,29 @@ Connect these only after the SCCB ID test succeeds.
 | `D1` | `PC7 / DCI_D1` | `JP10-24` | camera -> GD32 | Data bit 1 |
 | `D2` | `PC8 / DCI_D2` | `JP10-25` | camera -> GD32 | Data bit 2 |
 | `D3` | `PG11 / DCI_D3` | `JP11-16` | camera -> GD32 | Avoid `PC9`, which is connected to LED1 |
-| `D4` | `PE4 / DCI_D4` | `JP8-3` | camera -> GD32 | Data bit 4 |
+| `D4` | `PC11 / DCI_D4` | `JP11-5` | camera -> GD32 | Remapped after `PE4` header damage; START LED3 load risk |
 | `D5` | `PB6 / DCI_D5` | `JP11-24` | camera -> GD32 | Data bit 5 |
 | `D6` | `PE5 / DCI_D6` | `JP8-4` | camera -> GD32 | Data bit 6 |
-| `D7` | `PE6 / DCI_D7` | `JP8-5` | camera -> GD32 | Data bit 7 |
+| `D7` | `PB9 / DCI_D7` | `JP11-28` | camera -> GD32 | Remapped after `PE6` header damage |
 
 Current firmware boot print should match:
 
 ```text
-camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PE4 D5=PB6 D6=PE5 D7=PE6
+camera_dvp: PCLK=PA6 HREF=PA4 SYNC=PB7 D0=PC6 D1=PC7 D2=PC8 D3=PG11 D4=PC11 D5=PB6 D6=PE5 D7=PB9
 ```
 
-## 6. Current Camera Diagnostic Mode
+## 6. Current Camera Dataset Mode
 
-The current firmware is still a camera diagnostic build:
+The current firmware is a dataset-collection build:
 
-- OV5640 init defaults to the full app-note VGA YUV reference table plus QVGA output override; startup logs should show `camera_init_path=full_reference_vga_then_qvga`.
-- OV5640 ISP color bar test pattern is enabled by default.
-- DVP data order is swept to identify the correct byte/bit order.
-- OV5640 sync output sweep is enabled: `camera_sync_sweep[...]` temporarily forces HREF/VSYNC pad values through `0x3017/0x301D/0x301A`.
-- OV5640 timing sweep is enabled: `camera_timing_sweep[...]` tries DVP timing/sync register variants through `0x471B/0x471D/0x4730/0x4740`; a candidate is kept only if it reaches the line-sync threshold.
-- `byte_plane` dumps are diagnostic images, not training data.
-- Do not start real dataset collection until the diagnostic image is visually valid.
+- OV5640 uses the `OV5640_JPEG_TO_YUV_REF` real-scene path.
+- GD32 DCI uses PCLK rising edge.
+- OV5640 `0x4745` data order is pinned to `0x00`.
+- `preprocess_gray96` must print `scale=raw`.
+- `EDGECARE_ENABLE_GRAY96_DUMP=1U` is enabled for serial sample export.
+- `EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP=0U` is normally disabled.
 
-For the next timing-output test, keep this standard wiring before flashing/resetting:
+For collection, keep this standard wiring before flashing/resetting:
 
 ```text
 PCLK -> PA6
@@ -150,17 +149,19 @@ HERF/HREF -> PA4
 SYNC -> PB7
 ```
 
-Do not probe candidate pins during this test. The latest forced-output sweep already proved that `HERF/HREF -> PA4` reaches the OV5640 HREF pad and `SYNC -> PB7` reaches the OV5640 VSYNC pad.
+Do not probe candidate pins during collection. The current raw `gray96` path already has real-scene evidence.
 
-After flashing the latest build, open Serial Monitor, press RESET, and copy only these lines:
+After flashing the latest build, run the collector and press RESET once per sample:
+
+```powershell
+py .\tools\collect_gray96_serial.py --label empty --count 1 --variant jpeg_to_yuv_ref_y02 --kind gray96 --port COM8
+```
+
+Valid boot/capture logs should include:
 
 ```text
-camera_init: ... camera_init_path=full_reference_vga_then_qvga
-camera_timing_sweep[...]
-camera_timing_sweep_best: ...
-camera_dvp_regs[after_timing_sweep]: ...
-camera_dvp_ext_regs[after_timing_sweep]: ...
-camera_capture[pclk_...]: ...
+camera_capture[normal_jpeg_to_yuv_ref]: data_order=0x00/read0x00 dma=done words=38400 remain=0
+preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=raw ...
 ```
 
 ## 7. VW553 Upload Module
@@ -185,5 +186,8 @@ Target message from H7 to VW553:
 | Pin | Avoid reason |
 | --- | --- |
 | `PC9` | Connected to START board LED1; avoid using it as DCI_D3 |
+| `PC11` | Connected to START board LED3; currently used for DCI_D4 only because `PE4` is damaged |
+| `PB10/PB11` | Old SCCB pair; current board has `PB11` damage, use `PF1/PF0` |
+| `PE4/PE6` | Damaged camera data pins on the current board; use `PC11/PB9` |
 | `PA8` | Already used by alarm output; also a possible CK_OUT0 camera-clock conflict |
 | `PH4` | Used by some EVAL examples for I2C SCL, but not exposed on GD32H759I-START headers |

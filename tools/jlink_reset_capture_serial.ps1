@@ -6,6 +6,9 @@ param(
     [string]$Device = "GD32H759IMT6",
     [string]$Interface = "SWD",
     [int]$SpeedKHz = 4000,
+    [string]$JLinkSerial = "",
+    [int]$JLinkTimeoutSec = 20,
+    [switch]$ResetLineOnly,
     [string]$Output = ""
 )
 
@@ -17,6 +20,63 @@ function New-JLinkCommandFile {
     $path = Join-Path $env:TEMP ("edgecare_jlink_reset_{0}.jlink" -f ([Guid]::NewGuid().ToString("N")))
     $Lines | Set-Content -LiteralPath $path -Encoding ASCII
     return $path
+}
+
+function Get-JLinkUsbArgs {
+    if($JLinkSerial.Trim().Length -gt 0) {
+        return @("-USB", $JLinkSerial)
+    }
+    return @()
+}
+
+function Invoke-JLinkCommandFile {
+    param([string[]]$Lines)
+
+    $script = New-JLinkCommandFile $Lines
+    $stdout = Join-Path $env:TEMP ("edgecare_jlink_reset_{0}.stdout.log" -f ([Guid]::NewGuid().ToString("N")))
+    $stderr = Join-Path $env:TEMP ("edgecare_jlink_reset_{0}.stderr.log" -f ([Guid]::NewGuid().ToString("N")))
+    $process = $null
+    try {
+        if($ResetLineOnly) {
+            $arguments = @("-NoGui", "1", "-CommandFile", $script)
+        } else {
+            $arguments = @("-NoGui", "1", "-Device", $Device, "-If", $Interface, "-Speed", $SpeedKHz, "-AutoConnect", "1", "-CommandFile", $script)
+        }
+        $arguments = $arguments + (Get-JLinkUsbArgs)
+
+        $process = Start-Process -FilePath $JLinkExe `
+                                 -ArgumentList $arguments `
+                                 -NoNewWindow `
+                                 -PassThru `
+                                 -RedirectStandardOutput $stdout `
+                                 -RedirectStandardError $stderr
+        if(-not $process.WaitForExit($JLinkTimeoutSec * 1000)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            throw "J-Link command timed out after $JLinkTimeoutSec seconds"
+        }
+
+        $output = @()
+        if(Test-Path $stdout) {
+            $output += Get-Content -LiteralPath $stdout
+        }
+        if(Test-Path $stderr) {
+            $err = Get-Content -LiteralPath $stderr
+            if($err) {
+                $output += "--- stderr ---"
+                $output += $err
+            }
+        }
+        if(($null -ne $process.ExitCode) -and ($process.ExitCode -ne 0)) {
+            $output | ForEach-Object { Write-Host $_ }
+            throw "J-Link command failed with exit code $($process.ExitCode)"
+        }
+        return $output
+    } finally {
+        Remove-Item -LiteralPath $script,$stdout,$stderr -Force -ErrorAction SilentlyContinue
+        if(($null -ne $process) -and (-not $process.HasExited)) {
+            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 if(-not (Test-Path $JLinkExe)) {
@@ -39,43 +99,45 @@ $serial.ReadBufferSize = 262144
 $lines = New-Object System.Collections.Generic.List[string]
 
 try {
-    $script = New-JLinkCommandFile @(
-        "r",
-        "h",
-        "Exit"
-    )
-    try {
+    if(-not $ResetLineOnly) {
         Write-Host "Reset-halt target via J-Link before opening serial..."
-        $resetOutput = & $JLinkExe -NoGui 1 -Device $Device -If $Interface -Speed $SpeedKHz -AutoConnect 1 -CommandFile $script 2>&1
+        $resetOutput = Invoke-JLinkCommandFile @(
+            "r",
+            "h",
+            "Exit"
+        )
         $resetOutput |
             Select-String -Pattern "VTref|Device|Found Cortex|O\.K\.|Reset|Memory map|Error|Cannot|Failed" |
             ForEach-Object { Write-Host ("JLink: " + $_.Line) }
-        if($LASTEXITCODE -ne 0) {
-            throw "J-Link reset failed with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Remove-Item -LiteralPath $script -Force -ErrorAction SilentlyContinue
     }
 
     $serial.Open()
     $serial.DiscardInBuffer()
     Write-Host "Serial opened: $Port @ $Baudrate"
 
-    $script = New-JLinkCommandFile @(
-        "g",
-        "Exit"
-    )
-    try {
+    if($ResetLineOnly) {
+        Write-Host "Pulsing target RESET via J-Link after serial is ready..."
+        $runOutput = Invoke-JLinkCommandFile @(
+            "ShowHWStatus",
+            "ClrRESET",
+            "Sleep 300",
+            "SetRESET",
+            "Sleep 500",
+            "ShowHWStatus",
+            "Exit"
+        )
+        $runOutput |
+            Select-String -Pattern "VTref|O\.K\.|TRES|Error|Cannot|Failed" |
+            ForEach-Object { Write-Host ("JLink: " + $_.Line) }
+    } else {
         Write-Host "Running target via J-Link after serial is ready..."
-        $runOutput = & $JLinkExe -NoGui 1 -Device $Device -If $Interface -Speed $SpeedKHz -AutoConnect 1 -CommandFile $script 2>&1
+        $runOutput = Invoke-JLinkCommandFile @(
+            "g",
+            "Exit"
+        )
         $runOutput |
             Select-String -Pattern "VTref|Device|Found Cortex|O\.K\.|Reset|Memory map|Error|Cannot|Failed" |
             ForEach-Object { Write-Host ("JLink: " + $_.Line) }
-        if($LASTEXITCODE -ne 0) {
-            throw "J-Link run failed with exit code $LASTEXITCODE"
-        }
-    } finally {
-        Remove-Item -LiteralPath $script -Force -ErrorAction SilentlyContinue
     }
 
     Write-Host "Capturing serial for $DurationSec seconds..."
@@ -118,12 +180,17 @@ try {
     Write-Host ""
     Write-Host "== Interesting camera lines =="
     $interesting = $lines | Where-Object {
-        $_ -match "edgecare-01 boot|camera_id|camera_init|camera_capture_probe|camera_dvp_mode_sweep_best|camera_dvp_regs\[after_dvp_mode_sweep\]|camera_dvp_ext_regs\[after_dvp_mode_sweep\]|camera_data_pad_sweep|camera_data_pad_summary|camera_raw_pclk_sample|camera_isp_path_regs|camera_isp_path_sweep|camera_forced_sync_dci|camera_dci_sync_matrix|camera_dci_dma_summary|camera_dci_status_probe|camera_capture_mode_sweep|camera_capture\["
+        $_ -match "edgecare-01 boot|camera_id|camera_init|camera_capture_probe|jpeg_yuv_order_capture_sweep|camera_byte_scale|camera_dvp_mode_sweep_best|camera_dvp_regs\[after_dvp_mode_sweep\]|camera_dvp_ext_regs\[after_dvp_mode_sweep\]|camera_data_pad_sweep|camera_data_pad_summary|camera_raw_pclk_sample|camera_isp_path_regs|camera_isp_path_sweep|camera_forced_sync_dci|camera_dci_sync_matrix|camera_dci_dma_summary|camera_dci_status_probe|camera_capture_mode_sweep|camera_capture\["
     }
     if($interesting) {
         $interesting | ForEach-Object { Write-Host $_ }
     } else {
         Write-Host "No matching camera lines captured."
+    }
+    if($interesting -match "camera_byte_scale") {
+        Write-Host ""
+        Write-Host "Summarize JPEG-to-YUV order sweep with:"
+        Write-Host "  py .\tools\analyze_camera_byte_scale_log.py `"$Output`""
     }
 } finally {
     if($serial.IsOpen) {

@@ -1,5 +1,6 @@
 param(
     [string]$JLinkExe = "D:\SEGGER\JLink_V948\JLink.exe",
+    [string]$JLinkSerial = "",
     [string]$Device = "GD32H759IMT6",
     [string]$Interface = "SWD",
     [int]$SpeedKHz = 100,
@@ -17,6 +18,13 @@ function New-JLinkCommandFile {
     $path = Join-Path $env:TEMP ("edgecare_jlink_save_frame_{0}.jlink" -f ([Guid]::NewGuid().ToString("N")))
     $Lines | Set-Content -LiteralPath $path -Encoding ASCII
     return $path
+}
+
+function Get-JLinkUsbArgs {
+    if($JLinkSerial.Trim().Length -gt 0) {
+        return @("-USB", $JLinkSerial)
+    }
+    return @()
 }
 
 $ProjectRoot = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -52,6 +60,7 @@ try {
     Write-Host "  Device: $Device"
     Write-Host "  Interface: $Interface"
     Write-Host "  SpeedKHz: $SpeedKHz"
+    Write-Host "  JLinkSerial: $(if($JLinkSerial.Trim().Length -gt 0) { $JLinkSerial } else { '<auto>' })"
     Write-Host "  stdout: $Stdout"
     Write-Host "  stderr: $Stderr"
 
@@ -62,7 +71,7 @@ try {
         "-Speed", $SpeedKHz,
         "-AutoConnect", "1",
         "-CommandFile", $script
-    )
+    ) + (Get-JLinkUsbArgs)
     $process = Start-Process -FilePath $JLinkExe `
                              -ArgumentList $arguments `
                              -NoNewWindow `

@@ -1,6 +1,6 @@
 # EdgeCare Codex Handoff
 
-Updated: 2026-06-13
+Updated: 2026-06-16
 
 Use this file when opening a fresh Codex session or switching accounts. The new session should read this file first, then `AGENTS.md`, `CODING_STYLE.md`, `看板.md`, and the camera notes linked below.
 
@@ -30,6 +30,9 @@ Build an initial-round demo for the GigaDevice graduate electronics contest: `GD
 - Camera: OV5640 DVP module, SCCB ID confirmed as `0x56 0x40`.
 - J-Link PLUS is connected and validated through the board SWD header.
 - Safe J-Link device string for this workflow: `GD32H759IMT6`; do not use Keil's shorter `GD32H759IM` as a SEGGER `-Device` value.
+- 2026-06-16 current dataset state: `OV5640_JPEG_TO_YUV_REF + DCI rising + 0x4745=0x00` produces recognizable real-scene raw `gray96` with `scale=raw`, `min=0`, `max=255`. This is suitable for starting MVP dataset collection. Do not mix old `gray96_lshift2_mvp` samples into the new dataset.
+- 2026-06-16 root cause closed for the previous low byte range: full-frame `jpeg_yuv_order_00..07` sweep showed `order=0x00` is `not_right_shift2_like`, while old `0x02/0x06` remain `right_shift2_like`. Current defaults are `EDGECARE_CAMERA_DATA_ORDER_DEFAULT=0x00U` and `EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION=0U`.
+- 2026-06-16 current evidence: `.embeddedskills/logs/serial/edgecare_camera_current_sweep_20260616_112146.log`, `.embeddedskills/logs/serial/edgecare_camera_order00_normal_20260616_112516.log`, `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_order00_frame_20260616_112553.bin`, decoded previews under `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260616_112553_order00/`.
 - 2026-06-12 replacement START board baseline: J-Link flash at `100 kHz` succeeded, CH340 log port is `COM8`, and OV5640 minimum six-wire SCCB/control wiring (`3V3/GND/SCL/SDA/RES/PWON`) reads `camera_id: ov5640_regs[0x300A,0x300B]=0x56 0x40`. With only these six wires connected, `pclk_edges=0`, floating DVP data reads, and DCI capture timeout are expected.
 - 2026-06-13 full DVP retest on the replacement START board: SCCB remains stable, PCLK is active, forced HREF/VSYNC are visible at both GPIO and DCI, data-pad forced-output had already passed on the current mapping, and applying `0x471D=0x00` makes DCI/DMA complete a full QVGA frame. The remaining blocker is that the OV5640 natural/test-pattern pixel stream is constant (`0x3F` on raw PCLK and DMA capture under `data_order=0x02`), so the next investigation should focus on OV5640 output source/path registers rather than wiring.
 - 2026-06-13 RAW8 transport path is validated on hardware: OV5640 `0x501F=0x04` SNR RAW output, `0x471D=0x00`, `0x4740=0x22`, and GD32 DCI `PCLK rising + HS blank high + VS blank high` produce a complete QVGA DMA frame. This is transport proof, not photo proof: the saved real-scene RAW8 candidates look like high-frequency noise. Latest clean RAW8 transport log: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_012250.log`.
@@ -37,11 +40,14 @@ Build an initial-round demo for the GigaDevice graduate electronics contest: `GD
 - 2026-06-13 `href_gate24` (`0x4740=0x24`) was saved and decoded as a true hardware run. It still shows real-scene geometry but is visually worse than the clean `0x20` baseline, with lower useful dynamic range and heavier speckle. Do not pin `0x24` as the normal path. Evidence frame: `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_href_gate24_frame_20260613_173850.bin`; decoded preview: `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_173850_href_gate24/raw_yuv422_yuyv_y_320x240_norm.bmp`; log: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_173850.log`.
 - 2026-06-13 manual exposure `3503=0x07`, exposure `0x0375`, gain `0x02A` was tested and rejected. It was darker and worse than auto exposure. Keep `EDGECARE_CAMERA_JPEG_TO_YUV_MANUAL_EXPOSURE=0`. Evidence log: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_202337.log`.
 - 2026-06-13 `0x4745` data-order raw-PCLK sweep was tested and rejected as the main fix. Raw-PCLK samples stayed mostly constant per order; it did not explain the real-frame striping. Keep `EDGECARE_ENABLE_CAMERA_DATA_ORDER_SOURCE_SWEEP=0`. Evidence log: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_203147.log`.
+- Local OV5640 manuals are available under `doc/hardware_manuals/`. Important references: `OV5640_Datasheet.pdf`, `OV5640_camera_module_software_application_notes_1.pdf`, `OV5640_CSP3_DS_1.0卓越科_.pdf`, and `FD5640-500W-V11自动对焦.pdf`. Do not state that local OV5640 datasheet/app-note material is missing.
+- Datasheet reference: `OV5640_Datasheet.pdf` p.135 says `0x4745 DATA ORDER` bit[2:1] options are `00: Data[9:0]`, `10: {data[7:0],data[9:8]}`, and `x1: {data[1:0],data[9:2]}`; bit0 reverses output bit order. Historical default `0x4745=0x02` made the low 8-bit MCU capture receive the wrong slice for this path and caused the observed `right_shift2_like` `/4` byte scale. Current fixed default is `0x4745=0x00`.
+- 2026-06-14 added a default-off full-frame JPEG-to-YUV data-order diagnostic: `EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP=0`. When enabled, it captures `jpeg_yuv_order_00..07` on the recognizable `OV5640_JPEG_TO_YUV_REF + DCI rising` path and prints one `camera_byte_scale[...]` line per order with phase0..phase3 raw/lshift2 min/max/mean plus `hint=right_shift2_like|not_right_shift2_like`. Use these serial lines as the primary eight-order comparison, because one RAM save after the sweep only preserves the final captured frame. `tools/build_camera_jpeg_yuv_order_sweep.ps1 -Build` temporarily enables the sweep for one Keil build and restores `board_config.h`; it never flashes. Run it as the final build step before any manual diagnostic flash, because a later normal build/verify will rebuild the default non-sweep image. `tools/check_camera_jpeg_yuv_order_sweep_build.ps1` is a read-only artifact check; only flash the diagnostic build manually if it prints `ready_to_flash_sweep=1`. After manual flash, `tools/capture_camera_jpeg_yuv_order_sweep_log.ps1 -DurationSec 60` is the capture-only path: it verifies `ready_to_flash_sweep=1`, resets/runs the target through `jlink_reset_capture_serial.ps1`, and runs `tools/analyze_camera_byte_scale_log.py`; it does not build or flash. `tools/jlink_reset_capture_serial.ps1` keeps `jpeg_yuv_order_capture_sweep` and `camera_byte_scale[...]` in its interesting-line summary and prints the follow-up analyzer command when byte-scale records are present. The log analyzer summarizes the eight lines into `candidate_orders`, `missing_orders`, `timeout_orders`, and `conclusion=4745_mapping_candidate_found|all_orders_still_right_shift2_like|incomplete_sweep_log`; `timeout_orders` means firmware printed `skipped=capture_timeout` for that order. The 2026-06-16 sweep already used this path to identify `0x4745=0x00` as the fixed default. Do not enable the sweep for normal MVP/data-collection firmware.
 - 2026-06-13 DCI PCLK rising-edge sampling became the current best JPEG-to-YUV baseline. It keeps the OV5640 side at `0x4740=0x20` and improves the visible real-scene grayscale image versus falling-edge capture. Current default: `EDGECARE_CAMERA_JPEG_TO_YUV_DCI_RISING=1`. Confirmation log: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_204732.log`; saved frame: `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_rising_default_frame_20260613_204756.bin`; decoded preview: `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_204756_rising_default/raw_yuv422_yuyv_y_320x240_norm.bmp`.
 - 2026-06-13 two normal-path JPEG-to-YUV VFIFO/PCLK candidates were tested and rejected as default changes. `460B=0x35,460C=0x22,3824=0x04` evidence: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_205729.log`, `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_vfifo_ref_candidate_frame_20260613_205753.bin`, and same-scene recheck decoded under `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_210331_vfifo_ref_candidate_recheck/`. `460B=0x37,460C=0x20,3824=0x08` evidence: `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_210739.log`, `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_pclkdiv08_candidate_frame_20260613_210803.bin`, decoded under `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_210803_pclkdiv08_candidate/`. Both were visually and metrically equivalent to `baseline20_recheck`; keep `EDGECARE_CAMERA_JPEG_TO_YUV_VFIFO_REF_CANDIDATE=0` and `EDGECARE_CAMERA_JPEG_TO_YUV_PCLKDIV08_CANDIDATE=0`.
-- 2026-06-13 offline byte-scale analysis found that `baseline20_recheck` Y phases are only `2..49` and U/V phases sit near `31`; adding `lshift2` previews to `tools/decode_camera_frame.py` shows left-shift-by-2 moves Y toward `8..196` and U/V toward `124`. This supports a data-bit/byte-scale hypothesis, but it is only a diagnostic preview.
+- 2026-06-14 `tools/analyze_camera_byte_scale.py` now gives a focused offline verdict for saved raw frames. Existing recognizable JPEG-to-YUV frames (`rising_default`, `window_readback`, `lshift2`, and `baseline20_recheck`) all classify as `right_shift2_like`: Y phases remain around max `48..52`, U/V phases have raw mean `31`, and `lshift2` U/V mean becomes `124`. This makes a single loose high data bit less likely than a systematic OV5640 DVP byte-scale/data-slice/output bit-width issue. Still treat it as evidence, not a root-cause fix.
 - 2026-06-13 focused `0x3034=0x18` bit-mode A/B was tested and rejected as a default fix. Log `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_213104.log` read back `3034=0x18`, but frame `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_force_8bit3034_frame_20260613_213104.bin` still had Y phases only `2..44` and U/V near `31`. Decoded output is under `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_213104_force_8bit3034/`. Default was rebuilt and flashed back to baseline; `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_213715.log` confirms `3034=0x1A`, `3824=0x04`, `460b=0x37`, `460c=0x20`, `4740=0x20`, `4745=0x02`, DCI rising, and `dma=done`. Keep `EDGECARE_CAMERA_JPEG_TO_YUV_FORCE_8BIT_DVP=0`.
-- 2026-06-13 firmware-side `gray96` left-shift-by-2 compensation was enabled as the temporary MVP model-input workaround, not as a camera root-cause fix. Default is `EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION=1`. Hardware log `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_221540.log` shows `preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=lshift2 ... min=8 max=192 mean=93`. The matching raw RAM frame is `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_lshift2_frame_20260613_221540.bin`, decoded under `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_221540_lshift2/`. Same-frame offline comparison: `gray96_y02_96x96` is `min=2 max=48 mean=23`; `gray96_y02_lshift2_96x96` is `min=8 max=192 mean=93`, with visibly more readable 96x96 preview. Continue root-cause work on DVP data-bit mapping/output bit width and window/active-line phase.
+- 2026-06-13 firmware-side `gray96` left-shift-by-2 compensation was enabled as a temporary MVP workaround, not as a camera root-cause fix. It is now disabled by default: `EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION=0`. Historical log `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_221540.log` showed `scale=lshift2`; keep those samples only as evidence and do not use them for the current dataset.
 - 2026-06-13 read-only `0x3800..0x3815` window diagnostics were added and verified on hardware. Latest log `.embeddedskills/logs/serial/edgecare_reset_capture_20260613_225918.log` shows `camera_window_readback[normal_jpeg_to_yuv_ref]: crop=0,4-2623,1947 sensor_span=2624x1944 output=320x240 hts=1896 vts=984 offset=16,6 inc=0x31,0x31`, then `camera_capture[normal_jpeg_to_yuv_ref]: dma=done words=38400 remain=0 checksum=0xE83E2040` and `preprocess_gray96 ... scale=lshift2 ... min=8 max=192 mean=92`. Saved frame: `data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_window_readback_frame_20260613_225918.bin`; decoded preview directory: `data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_225918_window_readback/`. Interpretation: a simply wrong output window is unlikely to be the current root cause; raw Y is still only about `2..49`, so focus next on DVP data-bit mapping / byte-scale / physical D0-D7 anomalies.
 - Current camera wiring to keep fixed:
 
@@ -53,12 +59,12 @@ D0 -> PC6
 D1 -> PC7
 D2 -> PC8
 D3 -> PG11
-D4 -> PE4
+D4 -> PC11
 D5 -> PB6
 D6 -> PE5
-D7 -> PE6
-SCL -> PB10
-SDA -> PB11
+D7 -> PB9
+SCL -> PF1
+SDA -> PF0
 RES -> PD0
 PWON -> PD1
 ```
@@ -67,26 +73,26 @@ PWON -> PD1
 
 Do not continue random pin probing. Do not claim final color photo quality yet.
 
-What is proven: SCCB ID, DVP sync/data wiring enough for forced-output diagnostics, GD32 DCI/DMA full-frame transfer, an internal OV5640 DVP pattern captured as a regular image, and a recognizable real-scene grayscale frame through `OV5640_JPEG_TO_YUV_REF`. The current best grayscale proof uses GD32 DCI rising-edge capture while leaving OV5640 `0x4740=0x20`.
+What is proven: SCCB ID, current remapped DVP wiring, GD32 DCI/DMA full-frame transfer, `OV5640_JPEG_TO_YUV_REF`, DCI rising-edge sampling, and `0x4745=0x00` together produce recognizable real-scene raw `96x96` grayscale data suitable for MVP dataset collection.
 
-What is not proven: final camera root-cause fix or color photo quality. The current proof is grayscale, striped, and not color-correct. The `gray96` compensation makes the 96x96 model input usable enough for a temporary MVP dataset path, but it does not fix the underlying camera byte-scale/bit-mapping issue.
+What is not proven: final color photo quality. RGB/YUV color interpretation still has artifacts, so the dataset should be collected from raw `gray96`, not from color images.
 
 Latest clean real-scene grayscale proof:
 
 ```text
-.embeddedskills/logs/serial/edgecare_reset_capture_20260613_170316.log
-data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_frame_20260613_170316_clean.bin
-data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_170316_clean/raw_yuv422_yuyv_y_320x240_norm.bmp
-data/photo_evidence_jpeg_to_yuv_ref/decoded_20260613_170316_clean/raw_640x240_norm.bmp
+.embeddedskills/logs/serial/edgecare_camera_order00_normal_20260616_112516.log
+data/photo_evidence_jpeg_to_yuv_ref/edgecare_jpeg_to_yuv_ref_order00_frame_20260616_112553.bin
+data/photo_evidence_jpeg_to_yuv_ref/decoded_20260616_112553_order00/raw_yuv422_yuyv_y_320x240.bmp
+data/photo_evidence_jpeg_to_yuv_ref/decoded_20260616_112553_order00/gray96_y02_96x96.bmp
 ```
 
 Key proof lines:
 
 ```text
-camera_capture_normal: source=OV5640_JPEG_TO_YUV_REF output_mux=0x00 timing=471d00_474020 dci=pclk_rising_hs_blank_low_vs_blank_high note=photo_proof_candidate
-camera_capture[normal_jpeg_to_yuv_ref]: data_order=0x02/read0x02 dma=done words=38400 remain=0 nonzero=38400 repeated=5376 checksum=0x89D5289F ... dmaerr=000
-preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=lshift2 qvga=320x240 out=96x96 bytes=9216 min=8 max=192 mean=93 checksum=0x683CDABA ...
-infer_probe: model=stat_placeholder input=gray96 mean=31 contrast=58 conf=0.43 intrusion=0 note=replace_with_trained_model
+camera_capture_probe: ... data_order_default=0x00 ... jpeg_yuv_order_capture_sweep=0
+camera_capture[normal_jpeg_to_yuv_ref]: data_order=0x00/read0x00 dma=done words=38400 remain=0
+preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=raw ... min=0 max=255 mean=66
+infer_probe: model=stat_placeholder ... note=replace_with_trained_model
 ```
 
 Current default firmware is a focused JPEG-to-YUV cleanup build:
@@ -111,7 +117,9 @@ EDGECARE_CAMERA_JPEG_TO_YUV_DCI_RISING=1
 EDGECARE_CAMERA_JPEG_TO_YUV_VFIFO_REF_CANDIDATE=0
 EDGECARE_CAMERA_JPEG_TO_YUV_PCLKDIV08_CANDIDATE=0
 EDGECARE_CAMERA_JPEG_TO_YUV_FORCE_8BIT_DVP=0
-EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION=1
+EDGECARE_CAMERA_DATA_ORDER_DEFAULT=0x00
+EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION=0
+EDGECARE_ENABLE_GRAY96_DUMP=1
 ```
 
 The narrow sweep on the already-proven `OV5640_JPEG_TO_YUV_REF` path is currently off. Keep the variants available for future A/B checks, but the latest visual conclusion is that the `0x20` baseline is better than `href_gate24/0x24`:
@@ -225,31 +233,29 @@ camera_capture_mode_sweep[snapshot]: fv_polls=0 ef_seen=0 vsif_seen=0 elif_seen=
 camera_capture_mode_sweep[continuous]: fv_polls=0 ef_seen=0 vsif_seen=0 elif_seen=0 dma_cnt=38400->38400
 ```
 
-Interpretation: after fixing the software-side `0x301E` omission, OV5640 forced output reaches MCU-side D0, D2, D3, D5, D6, and D7 under the `pad_d9_d2` mapping. D0 is not clean because forcing expected bit0 also raises MCU D1 (`extra_mask=0x02`). Expected bit1 does not appear by itself (`missing_mask=0x02`). D4 is weak-high/not driven because it appears in the zero pattern without pull-down and disappears under pull-down/FF (`zero_float_mask=0x10`, `ff_missing_mask=0x10`). This narrows the next user-side check to D0/D1 coupling or same-pad wiring, missing module-D1-to-PC7 drive, and D4 continuity/header position. Do not move HREF/VSYNC/PCLK.
+Interpretation update: after fixing the software-side `0x301E` omission, the old-board log showed OV5640 forced output reaching MCU-side D0, D2, D3, D5, D6, and D7 under the `pad_d9_d2` mapping. It also showed expected bit0 raising MCU D1 (`extra_mask=0x02`) and expected bit1 not appearing by itself (`missing_mask=0x02`). The user later confirmed this came from the previous board's PC6/PC7 short. Do not carry the D0/D1 coupling conclusion forward as a new-board root cause unless a fresh new-board data-pad sweep reproduces it. D4 weak/contact uncertainty may still be checked, and the new board's current Dupont-male-into-unpopulated-header wiring should be treated as a possible contact/pin-position risk even if it feels tight.
 
 ## What To Do Next
 
-The user has authorized flashing and serial observation. Keep wiring fixed. The normal JPEG-to-YUV path has been rebuilt, flashed, and confirmed on the `0x20` + DCI rising-edge baseline:
+The user needs the project ready for dataset collection. Keep wiring fixed. The normal JPEG-to-YUV path has been rebuilt, flashed, and confirmed on the `0x20` + DCI rising-edge + `0x4745=0x00` baseline:
 
 ```text
-camera_capture_normal: source=OV5640_JPEG_TO_YUV_REF output_mux=0x00 timing=471d00_474020 dci=pclk_rising_hs_blank_low_vs_blank_high ...
-camera_isp_path_regs[normal_jpeg_to_yuv_ref]: ... 4740=0x20 ...
-camera_capture[normal_jpeg_to_yuv_ref]: ...
-preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 ...
+camera_capture[normal_jpeg_to_yuv_ref]: data_order=0x00/read0x00 dma=done words=38400 remain=0
+preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02 scale=raw ... min=0 max=255
 ```
 
 Latest confirmation log:
 
 ```text
-.embeddedskills/logs/serial/edgecare_reset_capture_20260613_204732.log
+.embeddedskills/logs/serial/edgecare_camera_order00_normal_20260616_112516.log
 ```
 
 Interpretation:
 
-- Continue cleanup on top of `OV5640_JPEG_TO_YUV_REF` + DCI rising + `gray96_lshift2`: the MVP dataset can start from `jpeg_to_yuv_ref_y02` after visual BMP checks, but the camera root cause remains open.
+- Start MVP dataset collection from raw `jpeg_to_yuv_ref_y02` `gray96` after visual BMP checks. Use `doc/EdgeCare_Dataset_Collection_Manual_CN.md` as the operator manual.
 - Do not spend more time on manual exposure `0x0375/0x02A`, `0x4745` raw-PCLK data-order sweep, `460B/460C=0x35/0x22`, `3824=0x08`, or `0x3034=0x18` unless a later regression invalidates this evidence.
 - Do not spend more time on a simple `0x3800..0x3815` output-window hypothesis unless later evidence contradicts the 2026-06-13 readback.
-- Next best root-cause target is DVP data-bit mapping / byte-scale and known physical D0/D1/D4 anomalies, then YUV/color interpretation; do not reopen sync wiring probes unless capture regresses.
+- Remaining camera cleanup target is color/YUV interpretation, not grayscale dataset viability. Treat D0/D1 coupling as old-board PC6/PC7-short history, not a current new-board fact.
 - If it regresses to timeout/constant/noise, compare against the saved proof frame before changing wiring.
 - Do not reopen data-pad or sync wiring diagnostics unless the normal JPEG-to-YUV capture regresses badly.
 
@@ -279,7 +285,7 @@ Latest verified result:
 
 ```text
 0 Error(s), 0 Warning(s)
-Program Size: Code=21998 RO-data=5994 RW-data=8 ZI-data=167000
+Program Size: Code=23374 RO-data=6886 RW-data=8 ZI-data=176216
 ```
 
 ## J-Link State
@@ -319,5 +325,5 @@ Paste this to the new Codex session:
 We are continuing the EdgeCare GD32H759I-START industrial violation detection project.
 Project root: D:\MyProject\GRADUATE ELECTONICS DESIGN CONTEST
 First read: doc/EdgeCare_Codex_Handoff.md, AGENTS.md, CODING_STYLE.md, 看板.md.
-Current task: continue from the `OV5640_JPEG_TO_YUV_REF + DCI rising + gray96_lshift2` grayscale MVP path. The `href_gate24/0x4740=0x24`, manual exposure, VFIFO/PCLK, `0x4745`, `0x3034=0x18`, and simple output-window hypotheses already have hardware evidence and should not be repeated unless capture regresses. For MVP data collection, temporarily enable `EDGECARE_ENABLE_GRAY96_DUMP=1`, collect `jpeg_to_yuv_ref_y02` samples for `empty/safe/intrusion`, and visually inspect BMPs before scaling up. For root-cause work, focus on DVP data-bit mapping/byte-scale and known physical D0/D1/D4 anomalies.
+Current task: collect the first MVP dataset using the fixed `OV5640_JPEG_TO_YUV_REF + DCI rising + 0x4745=0x00 + raw gray96` path. Read `doc/EdgeCare_Dataset_Collection_Manual_CN.md`. Keep `EDGECARE_ENABLE_GRAY96_DUMP=1`, collect `jpeg_to_yuv_ref_y02` samples for `empty/safe/intrusion`, and visually inspect BMPs before scaling up. Do not mix old `gray96_lshift2_mvp` data. Color/YUV RGB is still unresolved and is not required for the first dataset.
 ```

@@ -56,6 +56,7 @@ def main() -> int:
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_CAMERA_JPEG_TO_YUV_VFIFO_REF_CANDIDATE")
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_CAMERA_JPEG_TO_YUV_PCLKDIV08_CANDIDATE")
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_CAMERA_JPEG_TO_YUV_FORCE_8BIT_DVP")
+    require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP")
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_ENABLE_CAMERA_WINDOW_READBACK")
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION")
     require_contains(PROJECT / "board" / "board_config.h", "EDGECARE_ENABLE_OV5640_ST_DVP_REFERENCE_PATH")
@@ -109,6 +110,10 @@ def main() -> int:
     require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_ov5640_isp_path_sweep_probe")
     require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_jpeg_to_yuv_tune_sweep")
     require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_ov5640_jpeg_to_yuv_tune_sweep_probe")
+    require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_jpeg_to_yuv_data_order_capture_sweep")
+    require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe")
+    require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "camera_jpeg_to_yuv_byte_scale_log")
+    require_contains(PROJECT / "bsp" / "bsp_camera_ov5640.c", "jpeg_yuv_order_capture_sweep=%u")
     require_in_order(
         PROJECT / "bsp" / "bsp_camera_ov5640.c",
         [
@@ -265,6 +270,7 @@ def main() -> int:
             "camera_pattern_source_sweep_probe();",
             "camera_ov5640_data_order_source_sweep_probe();",
             "camera_ov5640_raw_data_order_capture_sweep_probe();",
+            "camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe();",
             "camera_ov5640_output_mux_sweep_probe();",
             "camera_ov5640_raw_dci_matrix_probe();",
             "camera_ov5640_isp_path_sweep_probe();",
@@ -505,11 +511,22 @@ def main() -> int:
         "#define EDGECARE_CAMERA_JPEG_TO_YUV_DCI_RISING 1U",
         "#define EDGECARE_CAMERA_JPEG_TO_YUV_VFIFO_REF_CANDIDATE 0U",
         "#define EDGECARE_CAMERA_JPEG_TO_YUV_PCLKDIV08_CANDIDATE 0U",
+        "#define EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP 0U",
         "#define EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF 1U",
         "#define EDGECARE_ENABLE_CAMERA_WINDOW_READBACK 1U",
-        "#define EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION 1U",
+        "#define EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION 0U",
+        "#define EDGECARE_CAMERA_DATA_ORDER_DEFAULT 0x00U",
     ):
         require_contains(PROJECT / "board" / "board_config.h", macro)
+    require_in_order(
+        PROJECT / "bsp" / "bsp_camera_ov5640.c",
+        [
+            "camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe",
+            "capture_ok = edgecare_camera_capture_attempt(tags[i],",
+            "camera_jpeg_to_yuv_byte_scale_log(tags[i], data_orders[i]);",
+            "camera_byte_scale[%s]",
+        ],
+    )
     require_in_order(
         PROJECT / "bsp" / "bsp_camera_ov5640.c",
         [
@@ -754,7 +771,7 @@ def main() -> int:
             "#elif (EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV || EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF) && !EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN",
             "edgecare_preprocess_gray96_from_yuyv(bsp_camera_ov5640_frame(),",
             'printf("preprocess_gray96: source=OV5640_JPEG_TO_YUV_REF_Y02',
-            "scale=lshift2",
+            "scale=raw",
         ],
     )
     require_in_order(

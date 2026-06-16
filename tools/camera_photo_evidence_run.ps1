@@ -3,6 +3,7 @@ param(
     [string]$Port = "COM8",
     [int]$Baudrate = 115200,
     [int]$SerialDurationSec = 35,
+    [string]$JLinkSerial = "",
     [string]$Device = "GD32H759IMT6",
     [string]$Interface = "SWD",
     [int]$SpeedKHz = 100,
@@ -23,6 +24,7 @@ Write-Host "EdgeCare camera photo-evidence run:"
 Write-Host "  Flash: $($Flash.IsPresent)"
 Write-Host "  Port: $Port @ $Baudrate"
 Write-Host "  Device: $Device"
+Write-Host "  JLinkSerial: $(if($JLinkSerial.Trim().Length -gt 0) { $JLinkSerial } else { '<auto>' })"
 Write-Host "  SWD speed: $SpeedKHz kHz"
 Write-Host "  Frame: $FramePath"
 Write-Host "  Decode: $DecodeDir"
@@ -43,6 +45,7 @@ powershell.exe -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "jlink_fla
     -Device $Device `
     -Interface $Interface `
     -SpeedKHz $SpeedKHz `
+    -JLinkSerial $JLinkSerial `
     -TimeoutSec $TimeoutSec
 if($LASTEXITCODE -ne 0) {
     throw "Firmware flash failed with exit code $LASTEXITCODE"
@@ -56,7 +59,8 @@ powershell.exe -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "jlink_res
     -DurationSec $SerialDurationSec `
     -Device $Device `
     -Interface $Interface `
-    -SpeedKHz $SpeedKHz
+    -SpeedKHz $SpeedKHz `
+    -JLinkSerial $JLinkSerial
 if($LASTEXITCODE -ne 0) {
     throw "Serial capture failed with exit code $LASTEXITCODE"
 }
@@ -70,6 +74,7 @@ powershell.exe -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "jlink_sav
     -Device $Device `
     -Interface $Interface `
     -SpeedKHz $SpeedKHz `
+    -JLinkSerial $JLinkSerial `
     -TimeoutSec $TimeoutSec
 if($LASTEXITCODE -ne 0) {
     throw "Frame save failed with exit code $LASTEXITCODE"

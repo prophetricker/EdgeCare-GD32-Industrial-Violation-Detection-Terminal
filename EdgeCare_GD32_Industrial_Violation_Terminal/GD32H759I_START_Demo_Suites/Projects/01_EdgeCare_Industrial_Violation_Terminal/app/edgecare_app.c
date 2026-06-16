@@ -360,7 +360,7 @@ void edgecare_app_init(void)
     printf("\r\n%s boot: EdgeCare GD32H759 terminal bring-up\r\n", EDGECARE_DEVICE_ID);
     printf("log_format: [ts_ms] state=... radar=... infer_ms=... conf=... alarm=... seq=...\r\n");
     printf("radar_input: LD2410 OUT active-high on PF8, alarm active-low on PA8\r\n");
-    printf("camera_sccb: SCL=PB10 SDA=PB11 RES=PD0 PWON=PD1\r\n");
+    printf("camera_sccb: SCL=PF1 SDA=PF0 RES=PD0 PWON=PD1\r\n");
     printf("camera_capture_probe: enabled; expect one camera_capture line before periodic state logs\r\n");
 
     camera_detected = bsp_camera_ov5640_id_probe();

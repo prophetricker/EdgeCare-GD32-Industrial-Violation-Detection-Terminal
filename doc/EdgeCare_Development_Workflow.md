@@ -110,6 +110,22 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_edgecare.ps1
 powershell -ExecutionPolicy Bypass -File .\tools\jlink_flash_edgecare.ps1 -Flash
 ```
 
+If SWD download or reset starts timing out, run the read-only health check before trying more flashes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\jlink_swd_health_check.ps1
+```
+
+Interpret the summary fields directly:
+
+- `ready_to_flash_sweep=1`: the current AXF is the prepared camera sweep diagnostic artifact.
+- `swd_dp_ok=0`: J-Link sees target voltage but cannot read the SWD debug port; check `GND`, `SWDIO`, and `SWCLK` wiring/contact first.
+- `swd_dp_ok=0` with `reset_line_observed=1`: J-Link can see target power and can drive `NRST`, so prioritize the SWD data path itself: `SWDIO -> PA13/JTMS`, `SWCLK -> PA14/JTCK`, possible line swap, contact, or a J-Link SWD-output issue.
+- `reset_line_observed=0`: the J-Link reset line did not visibly restart the firmware; check `NRST` wiring/contact, or use manual RESET only for serial capture.
+- `serial_lines>0`: COM8 USART logging is alive, so the MCU is still running even if SWD is broken.
+
+Keil GUI note: if Keil/J-Link logs show `JLINK_TIF_Select(JLINKARM_TIF_JTAG)`, set the debug adapter interface back to `SWD` in Keil. The command-line J-Link scripts in this repository already force `-If SWD`; if they still report `swd_dp_ok=0`, continue with the physical `SWDIO/SWCLK` path checks above.
+
 For GDB-style debugging, start the local J-Link GDB server:
 
 ```powershell
@@ -137,16 +153,22 @@ Codex should not:
 
 ## Data Collection Entry
 
-For model data collection, read:
+For the complete Chinese dataset collection procedure, read:
+
+```text
+doc/EdgeCare_Dataset_Collection_Manual_CN.md
+```
+
+For lower-level dump and diagnostic details, read:
 
 ```text
 doc/EdgeCare_Data_Collection.md
 ```
 
-The current capture path uses a firmware switch `EDGECARE_ENABLE_GRAY96_DUMP` and the PC script:
+The current dataset capture path uses `OV5640_JPEG_TO_YUV_REF + DCI rising + 0x4745=0x00`, raw `gray96`, and the PC script:
 
 ```powershell
-py .\tools\collect_gray96_serial.py --label empty --count 1 --port COM8
+py .\tools\collect_gray96_serial.py --label empty --count 1 --variant jpeg_to_yuv_ref_y02 --kind gray96 --port COM8
 ```
 
 ## Embeddedskills Configuration

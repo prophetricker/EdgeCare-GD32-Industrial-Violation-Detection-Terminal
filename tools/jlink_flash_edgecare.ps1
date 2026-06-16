@@ -1,6 +1,7 @@
 param(
     [switch]$Flash,
     [string]$JLinkExe = "D:\SEGGER\JLink_V948\JLink.exe",
+    [string]$JLinkSerial = "",
     [string]$Device = "GD32H759IMT6",
     [string]$Interface = "SWD",
     [int]$SpeedKHz = 1000,
@@ -20,6 +21,13 @@ function New-JLinkCommandFile {
     $path = Join-Path $env:TEMP ("edgecare_jlink_flash_{0}.jlink" -f ([Guid]::NewGuid().ToString("N")))
     $Lines | Set-Content -LiteralPath $path -Encoding ASCII
     return $path
+}
+
+function Get-JLinkUsbArgs {
+    if($JLinkSerial.Trim().Length -gt 0) {
+        return @("-USB", $JLinkSerial)
+    }
+    return @()
 }
 
 if([string]::IsNullOrWhiteSpace($AxfPath)) {
@@ -47,6 +55,7 @@ Write-Host "  AXF: $ResolvedAxf"
 Write-Host "  Device: $Device"
 Write-Host "  Interface: $Interface"
 Write-Host "  SpeedKHz: $SpeedKHz"
+Write-Host "  JLinkSerial: $(if($JLinkSerial.Trim().Length -gt 0) { $JLinkSerial } else { '<auto>' })"
 Write-Host "  TimeoutSec: $TimeoutSec"
 
 if(-not $Flash) {
@@ -58,10 +67,7 @@ if(-not $Flash) {
 
 $script = New-JLinkCommandFile @(
     "r",
-    "h",
     ("loadfile ""{0}""" -f $ResolvedAxf),
-    "r",
-    "g",
     "Exit"
 )
 
@@ -81,7 +87,7 @@ try {
         "-Speed", $SpeedKHz,
         "-AutoConnect", "1",
         "-CommandFile", $script
-    )
+    ) + (Get-JLinkUsbArgs)
     $process = Start-Process -FilePath $JLinkExe `
                              -ArgumentList $arguments `
                              -NoNewWindow `
@@ -107,15 +113,23 @@ try {
     }
 
     $output | ForEach-Object { Write-Host $_ }
-    $successMarkerSeen = ($output -match "O\.K\." -or
-                          $output -match "Programming done" -or
-                          $output -match "Verifying done" -or
-                          $output -match "Contents already match")
-    if((($null -ne $process.ExitCode) -and ($process.ExitCode -ne 0)) -and (-not $successMarkerSeen)) {
+    $outputText = $output -join "`n"
+    $flashProgrammed = (($outputText -match "Programming flash") -and ($outputText -match "Done")) -or
+                        ($outputText -match "Contents already match")
+    $flashVerified = (($outputText -match "Verifying flash") -and ($outputText -match "Done")) -or
+                      ($outputText -match "Contents already match")
+    $flashProgramVerifyOk = $flashProgrammed -and $flashVerified
+    if($flashProgramVerifyOk) {
+        Write-Host "flash_program_verify_ok=1"
+    } else {
+        Write-Host "flash_program_verify_ok=0"
+    }
+
+    if((($null -ne $process.ExitCode) -and ($process.ExitCode -ne 0)) -and (-not $flashProgramVerifyOk)) {
         throw "J-Link flash failed with exit code $($process.ExitCode). See log: $stdout"
     }
-    if(-not $successMarkerSeen) {
-        Write-Warning "J-Link completed, but the log did not contain a clear programming success marker."
+    if(-not $flashProgramVerifyOk) {
+        throw "J-Link completed, but the log did not contain a clear Programming flash + Verifying flash success marker. See log: $stdout"
     }
 } finally {
     Remove-Item -LiteralPath $script -Force -ErrorAction SilentlyContinue

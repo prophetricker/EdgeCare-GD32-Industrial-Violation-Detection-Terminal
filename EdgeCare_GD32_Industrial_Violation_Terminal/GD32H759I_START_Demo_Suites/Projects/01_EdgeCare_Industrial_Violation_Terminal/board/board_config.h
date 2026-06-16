@@ -20,10 +20,10 @@
 #define CAMERA_SCCB            I2C1
 #define CAMERA_SCCB_IDX        IDX_I2C1
 #define CAMERA_SCCB_RCU        RCU_I2C1
-#define CAMERA_SCCB_GPIO_RCU   RCU_GPIOB
-#define CAMERA_SCCB_GPIO_PORT  GPIOB
-#define CAMERA_SCCB_SCL_PIN    GPIO_PIN_10
-#define CAMERA_SCCB_SDA_PIN    GPIO_PIN_11
+#define CAMERA_SCCB_GPIO_RCU   RCU_GPIOF
+#define CAMERA_SCCB_GPIO_PORT  GPIOF
+#define CAMERA_SCCB_SCL_PIN    GPIO_PIN_1
+#define CAMERA_SCCB_SDA_PIN    GPIO_PIN_0
 #define CAMERA_SCCB_AF         GPIO_AF_4
 
 #define CAMERA_CTRL_GPIO_PORT  GPIOD
@@ -64,12 +64,12 @@
 #define EDGECARE_LOG_PERIOD_MS 500U
 
 /* Set to 1 only during dataset capture. UART dumps are intentionally verbose. */
-#define EDGECARE_ENABLE_GRAY96_DUMP      0U
+#define EDGECARE_ENABLE_GRAY96_DUMP      1U
 #define EDGECARE_GRAY96_DUMP_CHUNK_BYTES 32U
 #define EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS 1U
-#define EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP 1U
-/* Temporary MVP input compensation for low-range JPEG-to-YUV grayscale. Not a camera root-cause fix. */
-#define EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION 1U
+#define EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP 0U
+/* Keep disabled after fixing OV5640 0x4745 DVP byte mapping to a full-range 8-bit order. */
+#define EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION 0U
 
 /* Camera bring-up diagnostics. Keep heavy sweeps off unless a focused hardware log needs them. */
 #define EDGECARE_ENABLE_CAMERA_TEST_PATTERN 0U
@@ -123,6 +123,8 @@
 #define EDGECARE_CAMERA_JPEG_TO_YUV_PCLKDIV08_CANDIDATE 0U
 /* Focused A/B: force OV5640 SC PLL CONTROL0 MIPI bit mode from 10-bit (0x1A) to 8-bit DVP-style (0x18). */
 #define EDGECARE_CAMERA_JPEG_TO_YUV_FORCE_8BIT_DVP 0U
+/* Focused root-cause diagnostic: run JPEG-to-YUV full-frame DMA capture for 0x4745 orders 0..7. */
+#define EDGECARE_ENABLE_CAMERA_JPEG_TO_YUV_DATA_ORDER_CAPTURE_SWEEP 0U
 /* Read-only window/active-line diagnostics for OV5640 0x3800..0x3815. */
 #define EDGECARE_ENABLE_CAMERA_WINDOW_READBACK 1U
 /* Temporarily force OV5640 D[9:2] pads and read the MCU-side D0-D7 GPIO bus. */
@@ -133,8 +135,8 @@
 #define EDGECARE_ENABLE_CAMERA_CAPTURE_MODE_SWEEP 0U
 /* OV5640 0x4740: HREF valid high, VSYNC valid low, data updates on PCLK falling edge. */
 #define EDGECARE_CAMERA_DVP_POLARITY_REG 0x20U
-/* OV5640 0x4745: x1 maps original D[9:2] onto physical D[7:0] for 8-bit MCU capture. */
-#define EDGECARE_CAMERA_DATA_ORDER_DEFAULT 0x02U
+/* OV5640 0x4745: 0x00 keeps DVP Data[9:0]; current 8-bit bus captures full-range YUV here. */
+#define EDGECARE_CAMERA_DATA_ORDER_DEFAULT 0x00U
 /* Sweep all 0x4745 data-order/debug options, including bit-reversed output variants. */
 #define EDGECARE_ENABLE_CAMERA_DATA_ORDER_SWEEP 0U
 
