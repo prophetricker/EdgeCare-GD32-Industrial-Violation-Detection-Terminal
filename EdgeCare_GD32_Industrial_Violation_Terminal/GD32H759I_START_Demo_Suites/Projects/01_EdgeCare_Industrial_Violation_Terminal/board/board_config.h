@@ -64,9 +64,9 @@
 #define EDGECARE_LOG_PERIOD_MS 500U
 
 /* Set to 1 only during dataset capture. UART dumps are intentionally verbose. */
-#define EDGECARE_ENABLE_GRAY96_DUMP      1U
+#define EDGECARE_ENABLE_GRAY96_DUMP      0U
 #define EDGECARE_GRAY96_DUMP_CHUNK_BYTES 32U
-#define EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS 1U
+#define EDGECARE_ENABLE_GRAY96_DUMP_VARIANTS 0U
 #define EDGECARE_ENABLE_CAMERA_BYTE_PLANE_DUMP 0U
 /* Keep disabled after fixing OV5640 0x4745 DVP byte mapping to a full-range 8-bit order. */
 #define EDGECARE_ENABLE_GRAY96_LSHIFT2_COMPENSATION 0U

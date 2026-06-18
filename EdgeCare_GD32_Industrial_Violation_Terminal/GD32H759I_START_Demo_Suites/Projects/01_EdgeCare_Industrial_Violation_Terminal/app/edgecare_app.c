@@ -9,6 +9,7 @@
 #include "../bsp/bsp_camera_ov5640.h"
 #include "../bsp/bsp_radar_ld2410.h"
 #include "../model/edgecare_infer.h"
+#include "../model/edgecare_model_baseline.h"
 #include "../platform/edgecare_log.h"
 #include "../vision/edgecare_preprocess.h"
 #include <stdio.h>
@@ -339,14 +340,34 @@ static void edgecare_preprocess_gray96_probe(void)
 #endif
 
     if(edgecare_infer(g_model_input_gray, &infer_result)) {
+        edgecare_vote_state_t vote_state;
+        uint8_t voted_alarm;
+
+        edgecare_vote_reset(&vote_state);
+        voted_alarm = edgecare_vote_update(&vote_state, &infer_result);
         g_edgecare.confidence_percent = infer_result.confidence_percent;
-        g_edgecare.infer_ms = 1U;
-        printf("infer_probe: model=stat_placeholder input=gray96 mean=%u contrast=%u conf=%u.%02u intrusion=%u note=replace_with_trained_model\r\n",
+        g_edgecare.infer_ms = infer_result.inference_time_ms;
+        printf("infer_probe: model=%s input=gray96 mean=%u contrast=%u conf=%u.%02u intrusion=%u placeholder=%u note=trained_baseline\r\n",
+               infer_result.model_name,
                infer_result.mean,
                infer_result.contrast,
                infer_result.confidence_percent / 100U,
                infer_result.confidence_percent % 100U,
-               infer_result.intrusion);
+               infer_result.intrusion,
+               infer_result.is_placeholder);
+        printf("vote_probe: threshold=%u.%02u rule=2of3_release2 intrusion_votes=%u safe_votes=%u alarm=%u\r\n",
+               (uint8_t)((EDGECARE_BASELINE_THRESHOLD_Q15 * 100U) / 32768U) / 100U,
+               (uint8_t)((EDGECARE_BASELINE_THRESHOLD_Q15 * 100U) / 32768U) % 100U,
+               vote_state.intrusion_votes,
+               vote_state.safe_votes,
+               voted_alarm);
+        printf("vw553_json: {\"dev\":\"%s\",\"event\":\"zone_intrusion\",\"conf\":%u.%02u,\"lat_ms\":%lu,\"seq\":%lu,\"placeholder\":%u}\r\n",
+               EDGECARE_DEVICE_ID,
+               infer_result.confidence_percent / 100U,
+               infer_result.confidence_percent % 100U,
+               (unsigned long)infer_result.inference_time_ms,
+               (unsigned long)g_edgecare.seq,
+               infer_result.is_placeholder);
     }
 }
 

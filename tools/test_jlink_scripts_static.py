@@ -33,6 +33,7 @@ def main() -> int:
     gdbserver = TOOLS / "jlink_gdbserver_edgecare.ps1"
     reset_capture = TOOLS / "jlink_reset_capture_serial.ps1"
     health = TOOLS / "jlink_swd_health_check.ps1"
+    keil_flash = TOOLS / "keil_flash_edgecare.ps1"
     save_frame = TOOLS / "jlink_save_camera_frame.ps1"
     sweep_capture = TOOLS / "capture_camera_jpeg_yuv_order_sweep_log.ps1"
     photo_evidence = TOOLS / "camera_photo_evidence_run.ps1"
@@ -101,6 +102,32 @@ def main() -> int:
             "== J-Link RESET line ==",
             "== COM serial ==",
             "== Health summary ==",
+        ],
+    )
+
+    require_contains(keil_flash, "[switch]$Flash")
+    require_contains(keil_flash, "Dry run")
+    require_contains(keil_flash, "UV4.exe")
+    require_contains(keil_flash, "EdgeCare_GD32_Terminal.uvprojx")
+    require_contains(keil_flash, "JLinkSettings.ini")
+    require_contains(keil_flash, 'Device="GD32H759IMT6"')
+    require_contains(keil_flash, 'Device="ARM7"')
+    require_contains(keil_flash, "-f")
+    require_contains(keil_flash, "Verify OK")
+    require_contains(keil_flash, "Erase Done")
+    require_contains(keil_flash, "Programming Done")
+    require_contains(keil_flash, "keil_flash_ok=1")
+    require_contains(keil_flash, "WaitForExit")
+    require_contains(keil_flash, "Stop-Process")
+    require_in_order(
+        keil_flash,
+        [
+            "if(-not $Flash)",
+            "exit 0",
+            "JLinkSettings.ini",
+            "Start-Process",
+            "WaitForExit",
+            "Verify OK",
         ],
     )
 

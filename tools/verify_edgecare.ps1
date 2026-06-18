@@ -63,6 +63,11 @@ try {
         Assert-LastExitCode "J-Link script static test"
     }
 
+    Invoke-Step "Keil flash script dry run" {
+        powershell.exe -ExecutionPolicy Bypass -File .\tools\keil_flash_edgecare.ps1
+        Assert-LastExitCode "Keil flash script dry run"
+    }
+
     Invoke-Step "camera diagnostic build script static test" {
         py .\tools\test_camera_diag_build_static.py
         Assert-LastExitCode "camera diagnostic build script static test"
@@ -71,6 +76,21 @@ try {
     Invoke-Step "gray96 collection parser test" {
         py .\tools\test_collect_gray96_serial.py
         Assert-LastExitCode "gray96 collection parser test"
+    }
+
+    Invoke-Step "gray96 dataset quality test" {
+        py .\tools\test_dataset_quality.py
+        Assert-LastExitCode "gray96 dataset quality test"
+    }
+
+    Invoke-Step "gray96 baseline training test" {
+        py .\tools\test_train_gray96_baseline.py
+        Assert-LastExitCode "gray96 baseline training test"
+    }
+
+    Invoke-Step "edgecare inference baseline static test" {
+        py .\tools\test_edgecare_infer_baseline_static.py
+        Assert-LastExitCode "edgecare inference baseline static test"
     }
 
     Invoke-Step "camera byte-scale analyzer test" {

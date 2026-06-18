@@ -50,7 +50,8 @@ Startup probe logs may be verbose, but periodic logs should remain compact and p
 ## Key Project Docs
 
 - `CODING_STYLE.md`: firmware structure and embedded C rules
-- `doc/EdgeCare_Hardware_Pinout.md`: actual wiring and pinout
-- `doc/EdgeCare_Camera_Bringup_Notes.md`: OV5640/DCI bring-up notes
-- `doc/EdgeCare_Development_Workflow.md`: VS Code + Codex + Keil workflow
+- `doc/00_先看这里_文档索引.md`: human-readable document entry
+- `doc/02_硬件引脚与接线说明.md`: actual wiring and pinout
+- `doc/04_OV5640相机调试记录.md`: OV5640/DCI bring-up notes
+- `doc/06_开发工作流_VSCode_Codex_Keil.md`: VS Code + Codex + Keil workflow
 - `看板.md`: current status and next actions

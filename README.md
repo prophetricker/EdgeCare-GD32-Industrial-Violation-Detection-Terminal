@@ -42,14 +42,14 @@ QVGA YUV422 -> gray96 -> edgecare_infer()
 
 - [项目看板](看板.md)：当前进度、阻塞点和下一步。
 - [固件工程说明](EdgeCare_GD32_Industrial_Violation_Terminal/README.md)：接线、Keil 下载和串口日志。
-- [硬件引脚表](doc/EdgeCare_Hardware_Pinout.md)：GD32H759、雷达、报警灯和摄像头接线。
-- [快速接线表](doc/EdgeCare_Wiring_Table.md)：按模块列出每根线的连接方式。
-- [相机调试记录](doc/EdgeCare_Camera_Bringup_Notes.md)：OV5640、DCI/DMA 和诊断日志解释。
-- [数据集采集全流程手册](doc/EdgeCare_Dataset_Collection_Manual_CN.md)：从固件配置、烧录、串口采集到质检的中文完整流程。
-- [数据采集流程](doc/EdgeCare_Data_Collection.md)：`gray96` 样本导出和相机诊断细节。
-- [开发工作流](doc/EdgeCare_Development_Workflow.md)：VS Code、Codex、Keil 和 Git 流程。
+- [文档索引](doc/00_先看这里_文档索引.md)：先从这里判断该看哪份文档。
+- [数据集采集全流程手册](doc/01_数据集采集全流程手册.md)：从场景搭建、固件配置、烧录、串口采集到质检的中文完整流程。
+- [硬件引脚与接线说明](doc/02_硬件引脚与接线说明.md)：GD32H759、雷达、报警灯和摄像头接线。
+- [快速接线表](doc/03_快速接线表.md)：按模块列出每根线的连接方式。
+- [OV5640 相机调试记录](doc/04_OV5640相机调试记录.md)：OV5640、DCI/DMA 和诊断日志解释。
+- [gray96 数据采集与诊断细节](doc/05_gray96数据采集与诊断细节.md)：`gray96` 样本导出和相机诊断细节。
+- [开发工作流](doc/06_开发工作流_VSCode_Codex_Keil.md)：VS Code、Codex、Keil 和 Git 流程。
 - [固件代码规范](CODING_STYLE.md)：模块边界和嵌入式 C 规则。
-- [场景搭建指南](doc/EdgeCare_Scene_Setup_Guide.md)：队友当前使用的危险区场景准备清单。
 
 ## 固件目录
 
