@@ -100,12 +100,17 @@ def train_logreg(
     train_rows: list[tuple[list[float], int, str, Path]],
     epochs: int,
     learning_rate: float,
+    shuffle_seed: int | None = None,
 ) -> list[float]:
     if not train_rows:
         raise ValueError("no training samples")
     weights = [0.0] * len(train_rows[0][0])
+    epoch_rows = list(train_rows)
+    rng = random.Random(shuffle_seed) if shuffle_seed is not None else None
     for _ in range(epochs):
-        for features, target, _label, _path in train_rows:
+        if rng is not None:
+            rng.shuffle(epoch_rows)
+        for features, target, _label, _path in epoch_rows:
             pred = sigmoid(sum(weight * feature for weight, feature in zip(weights, features)))
             error = target - pred
             for i, feature in enumerate(features):
@@ -175,15 +180,17 @@ def train_and_export(
     train_ratio: float,
     seed: int = 7,
     threshold: float = 0.5,
+    shuffle_seed: int | None = None,
 ) -> TrainingResult:
     dataset = load_dataset(dataset_root)
     if len(dataset) < 2:
         raise ValueError(f"need at least 2 samples, got {len(dataset)}")
     out_dir.mkdir(parents=True, exist_ok=True)
     train_rows, val_rows = split_dataset(dataset, train_ratio, seed)
-    eval_weights = train_logreg(train_rows, epochs, learning_rate)
+    eval_weights = train_logreg(train_rows, epochs, learning_rate, shuffle_seed=shuffle_seed)
     val_accuracy, confusion = evaluate(eval_weights, val_rows, threshold)
-    export_weights = train_logreg(dataset, epochs, learning_rate)
+    export_weights = train_logreg(dataset, epochs, learning_rate, shuffle_seed=shuffle_seed)
+    export_accuracy, export_confusion = evaluate(export_weights, dataset, threshold)
     metrics = {
         "model": "gray_stats_grid4_logreg_baseline",
         "note": "baseline trained from MCU gray96 samples; validation uses a held-out split, exported weights are retrained on all samples",
@@ -196,6 +203,9 @@ def train_and_export(
         "feature_count": len(export_weights),
         "threshold": threshold,
         "export_training": "all_samples",
+        "shuffle_seed": shuffle_seed,
+        "export_accuracy": export_accuracy,
+        "export_confusion": export_confusion,
     }
     (out_dir / "baseline_metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     write_header(out_dir / "edgecare_model_baseline.h", export_weights, threshold)
@@ -220,6 +230,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--train-ratio", type=float, default=0.8)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--shuffle-seed", type=int, help="Shuffle training rows each epoch with this deterministic seed.")
     return parser.parse_args()
 
 
@@ -233,6 +244,7 @@ def main() -> int:
         train_ratio=args.train_ratio,
         seed=args.seed,
         threshold=args.threshold,
+        shuffle_seed=args.shuffle_seed,
     )
     print(f"total_samples={result.total_samples}")
     print(f"train_samples={result.train_samples} val_samples={result.val_samples}")

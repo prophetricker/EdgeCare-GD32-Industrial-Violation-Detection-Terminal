@@ -75,6 +75,28 @@ def test_export_model_is_retrained_on_all_samples() -> None:
         shutil.rmtree(tmp)
 
 
+def test_shuffled_training_is_deterministic_with_seed() -> None:
+    tmp = Path(tempfile.mkdtemp(prefix="edgecare_train_shuffle_"))
+    try:
+        root = tmp / "raw_gray96"
+        for i, value in enumerate([8, 16, 24, 32]):
+            write_sample(root / "empty" / f"empty_{i}.pgm", value)
+        for i, value in enumerate([40, 48, 56, 64]):
+            write_sample(root / "safe" / f"safe_{i}.pgm", value)
+        for i, value in enumerate([180, 196, 212, 228]):
+            write_sample(root / "intrusion" / f"intrusion_{i}.pgm", value)
+
+        dataset = train_gray96_baseline.load_dataset(root)
+        ordered = train_gray96_baseline.train_logreg(dataset, 20, 0.05)
+        shuffled_a = train_gray96_baseline.train_logreg(dataset, 20, 0.05, shuffle_seed=11)
+        shuffled_b = train_gray96_baseline.train_logreg(dataset, 20, 0.05, shuffle_seed=11)
+
+        assert shuffled_a == shuffled_b
+        assert shuffled_a != ordered
+    finally:
+        shutil.rmtree(tmp)
+
+
 def test_training_exports_configured_threshold_to_header_and_metrics() -> None:
     tmp = Path(tempfile.mkdtemp(prefix="edgecare_train_threshold_"))
     try:
@@ -105,7 +127,38 @@ def test_training_exports_configured_threshold_to_header_and_metrics() -> None:
         shutil.rmtree(tmp)
 
 
+def test_metrics_include_export_model_replay_confusion() -> None:
+    tmp = Path(tempfile.mkdtemp(prefix="edgecare_train_export_replay_"))
+    try:
+        root = tmp / "raw_gray96"
+        out = tmp / "model"
+        for i, value in enumerate([8, 16, 24, 32]):
+            write_sample(root / "empty" / f"empty_{i}.pgm", value)
+        for i, value in enumerate([40, 48, 56, 64]):
+            write_sample(root / "safe" / f"safe_{i}.pgm", value)
+        for i, value in enumerate([180, 196, 212, 228]):
+            write_sample(root / "intrusion" / f"intrusion_{i}.pgm", value)
+
+        train_gray96_baseline.train_and_export(
+            dataset_root=root,
+            out_dir=out,
+            epochs=20,
+            learning_rate=0.05,
+            train_ratio=0.5,
+            seed=3,
+            threshold=0.4,
+        )
+
+        metrics = (out / "baseline_metrics.json").read_text(encoding="utf-8")
+        assert '"export_accuracy"' in metrics
+        assert '"export_confusion"' in metrics
+    finally:
+        shutil.rmtree(tmp)
+
+
 if __name__ == "__main__":
     test_baseline_training_exports_metrics_and_header()
     test_export_model_is_retrained_on_all_samples()
+    test_shuffled_training_is_deterministic_with_seed()
     test_training_exports_configured_threshold_to_header_and_metrics()
+    test_metrics_include_export_model_replay_confusion()
