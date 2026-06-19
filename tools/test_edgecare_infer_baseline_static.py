@@ -15,7 +15,7 @@ MODEL_DIR = (
 def test_firmware_infer_uses_trained_baseline_model() -> None:
     infer_c = (MODEL_DIR / "edgecare_infer.c").read_text(encoding="utf-8")
     assert '#include "edgecare_model_baseline.h"' in infer_c
-    assert 'result->model_name = "gray_stats_grid4_logreg_baseline"' in infer_c
+    assert "result->model_name = EDGECARE_BASELINE_MODEL_NAME" in infer_c
     assert "result->is_placeholder = 0U" in infer_c
     assert "(uint64_t)sum" in infer_c
     assert "(uint64_t)grid_sum" in infer_c
@@ -25,10 +25,18 @@ def test_firmware_infer_uses_trained_baseline_model() -> None:
 def test_firmware_baseline_header_has_deployable_constants() -> None:
     header = (MODEL_DIR / "edgecare_model_baseline.h").read_text(encoding="utf-8")
     assert "#include <stdint.h>" in header
-    assert "#define EDGECARE_BASELINE_FEATURE_COUNT 21" in header
+    assert "#define EDGECARE_BASELINE_MODEL_NAME" in header
+    assert "#define EDGECARE_BASELINE_GRID" in header
+    assert "#define EDGECARE_BASELINE_FEATURE_COUNT" in header
     assert "#define EDGECARE_BASELINE_THRESHOLD_Q15" in header
     assert "#define EDGECARE_BASELINE_LOGIT_THRESHOLD_Q15" in header
     assert "edgecare_baseline_weights_q15" in header
+
+
+def test_firmware_infer_uses_header_configured_grid() -> None:
+    infer_c = (MODEL_DIR / "edgecare_infer.c").read_text(encoding="utf-8")
+    assert "#define EDGECARE_BASELINE_GRID 4U" not in infer_c
+    assert "EDGECARE_BASELINE_GRID" in infer_c
 
 
 def test_app_probe_logs_report_real_model_not_placeholder() -> None:
@@ -50,4 +58,5 @@ def test_app_probe_logs_report_real_model_not_placeholder() -> None:
 if __name__ == "__main__":
     test_firmware_infer_uses_trained_baseline_model()
     test_firmware_baseline_header_has_deployable_constants()
+    test_firmware_infer_uses_header_configured_grid()
     test_app_probe_logs_report_real_model_not_placeholder()

@@ -51,6 +51,7 @@ doc/**
 !doc/hardware_manuals/README.md
 !doc/competition_materials/
 !doc/competition_materials/README.md
+!doc/competition_materials/EdgeCare_技术论文_初稿.md
 
 # Vendor firmware library is kept locally for building but should not be
 # touched during EdgeCare refactors unless explicitly needed.

@@ -93,6 +93,11 @@ try {
         Assert-LastExitCode "edgecare inference baseline static test"
     }
 
+    Invoke-Step "edgecare runtime vision loop static test" {
+        py -m pytest .\tools\test_edgecare_runtime_vision_loop_static.py -q
+        Assert-LastExitCode "edgecare runtime vision loop static test"
+    }
+
     Invoke-Step "camera byte-scale analyzer test" {
         py .\tools\test_analyze_camera_byte_scale.py
         Assert-LastExitCode "camera byte-scale analyzer test"

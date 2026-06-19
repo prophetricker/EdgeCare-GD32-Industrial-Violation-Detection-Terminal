@@ -66,6 +66,28 @@ Keep these in Keil for now:
 
 This keeps the workflow stable while the OpenOCD/GD-Link flash path is uncertain for GD32H759.
 
+## GD-Link Automation
+
+Competition-time default download path is Keil with the saved CMSIS-DAP/GD-Link project settings:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\keil_flash_gdlink_edgecare.ps1
+```
+
+The command above is a dry run. To actually download the latest AXF through GD-Link, use:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\keil_flash_gdlink_edgecare.ps1 -Flash -TimeoutSec 180
+```
+
+Expected success in `EdgeCare_GD32_Industrial_Violation_Terminal/flash-gdlink-keil.log`:
+
+```text
+Erase Done.Programming Done.Verify OK.Application running ...
+```
+
+This path intentionally does not touch `JLinkSettings.ini` and does not use SEGGER device names.
+
 ## J-Link Automation
 
 J-Link is now validated for the external SWD header path:

@@ -13,7 +13,6 @@ from pathlib import Path
 import dataset_quality
 
 
-FEATURE_COUNT = 20
 LABEL_TO_TARGET = {
     "empty": 0,
     "safe": 0,
@@ -41,7 +40,9 @@ def sigmoid(value: float) -> float:
     return z / (1.0 + z)
 
 
-def gray_features(pixels: bytes, width: int, height: int) -> list[float]:
+def gray_features(pixels: bytes, width: int, height: int, grid: int = 4) -> list[float]:
+    if grid <= 0:
+        raise ValueError("grid must be positive")
     count = width * height
     values = [pixel / 255.0 for pixel in pixels]
     mean = sum(values) / count
@@ -50,7 +51,6 @@ def gray_features(pixels: bytes, width: int, height: int) -> list[float]:
     contrast = max_value - min_value
 
     features = [1.0, mean, min_value, max_value, contrast]
-    grid = 4
     for gy in range(grid):
         y0 = (gy * height) // grid
         y1 = ((gy + 1) * height) // grid
@@ -68,7 +68,7 @@ def gray_features(pixels: bytes, width: int, height: int) -> list[float]:
     return features
 
 
-def load_dataset(root: Path) -> list[tuple[list[float], int, str, Path]]:
+def load_dataset(root: Path, grid: int = 4) -> list[tuple[list[float], int, str, Path]]:
     samples = dataset_quality.scan_samples(
         root=root,
         expected_variant="any",
@@ -78,7 +78,7 @@ def load_dataset(root: Path) -> list[tuple[list[float], int, str, Path]]:
     for sample in samples:
         if sample.label not in LABEL_TO_TARGET:
             continue
-        dataset.append((gray_features(sample.pixels, sample.width, sample.height), LABEL_TO_TARGET[sample.label], sample.label, sample.path))
+        dataset.append((gray_features(sample.pixels, sample.width, sample.height, grid), LABEL_TO_TARGET[sample.label], sample.label, sample.path))
     return dataset
 
 
@@ -146,7 +146,7 @@ def evaluate(
     return correct / len(rows), confusion
 
 
-def write_header(path: Path, weights: list[float], threshold: float) -> None:
+def write_header(path: Path, weights: list[float], threshold: float, grid: int) -> None:
     q15 = [int(round(weight * 32768.0)) for weight in weights]
     body = ", ".join(str(value) for value in q15)
     logit_threshold_q15 = int(round(math.log(threshold / (1.0 - threshold)) * 32768.0))
@@ -159,6 +159,8 @@ def write_header(path: Path, weights: list[float], threshold: float) -> None:
                 "",
                 "#include <stdint.h>",
                 "",
+                f'#define EDGECARE_BASELINE_MODEL_NAME "gray_stats_grid{grid}_logreg_baseline"',
+                f"#define EDGECARE_BASELINE_GRID {grid}",
                 f"#define EDGECARE_BASELINE_FEATURE_COUNT {len(weights)}",
                 f"#define EDGECARE_BASELINE_THRESHOLD_Q15 {int(round(threshold * 32768.0))}",
                 f"#define EDGECARE_BASELINE_LOGIT_THRESHOLD_Q15 {logit_threshold_q15}",
@@ -181,8 +183,9 @@ def train_and_export(
     seed: int = 7,
     threshold: float = 0.5,
     shuffle_seed: int | None = None,
+    grid: int = 4,
 ) -> TrainingResult:
-    dataset = load_dataset(dataset_root)
+    dataset = load_dataset(dataset_root, grid)
     if len(dataset) < 2:
         raise ValueError(f"need at least 2 samples, got {len(dataset)}")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -192,7 +195,7 @@ def train_and_export(
     export_weights = train_logreg(dataset, epochs, learning_rate, shuffle_seed=shuffle_seed)
     export_accuracy, export_confusion = evaluate(export_weights, dataset, threshold)
     metrics = {
-        "model": "gray_stats_grid4_logreg_baseline",
+        "model": f"gray_stats_grid{grid}_logreg_baseline",
         "note": "baseline trained from MCU gray96 samples; validation uses a held-out split, exported weights are retrained on all samples",
         "total_samples": len(dataset),
         "train_samples": len(train_rows),
@@ -201,6 +204,7 @@ def train_and_export(
         "val_accuracy": val_accuracy,
         "confusion": confusion,
         "feature_count": len(export_weights),
+        "grid": grid,
         "threshold": threshold,
         "export_training": "all_samples",
         "shuffle_seed": shuffle_seed,
@@ -208,7 +212,7 @@ def train_and_export(
         "export_confusion": export_confusion,
     }
     (out_dir / "baseline_metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
-    write_header(out_dir / "edgecare_model_baseline.h", export_weights, threshold)
+    write_header(out_dir / "edgecare_model_baseline.h", export_weights, threshold, grid)
     return TrainingResult(
         total_samples=len(dataset),
         train_samples=len(train_rows),
@@ -231,6 +235,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--shuffle-seed", type=int, help="Shuffle training rows each epoch with this deterministic seed.")
+    parser.add_argument("--grid", type=int, default=4, help="Grid size for spatial mean features; 4 keeps the legacy 21-feature model, 8 exports 69 features.")
     return parser.parse_args()
 
 
@@ -245,6 +250,7 @@ def main() -> int:
         seed=args.seed,
         threshold=args.threshold,
         shuffle_seed=args.shuffle_seed,
+        grid=args.grid,
     )
     print(f"total_samples={result.total_samples}")
     print(f"train_samples={result.train_samples} val_samples={result.val_samples}")

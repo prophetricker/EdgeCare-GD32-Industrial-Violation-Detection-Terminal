@@ -420,6 +420,11 @@
               <FilePath>..\bsp\bsp_camera_ov5640.c</FilePath>
             </File>
             <File>
+              <FileName>bsp_voice_vw553.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\bsp\bsp_voice_vw553.c</FilePath>
+            </File>
+            <File>
               <FileName>edgecare_log.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\platform\edgecare_log.c</FilePath>

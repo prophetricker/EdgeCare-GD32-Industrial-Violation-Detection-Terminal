@@ -2813,7 +2813,8 @@ static uint8_t edgecare_camera_capture_attempt(const char *tag,
                                                uint32_t hsync_polarity,
                                                uint32_t vsync_polarity,
                                                uint8_t data_order,
-                                               camera_frame_quality_t *quality)
+                                               camera_frame_quality_t *quality,
+                                               uint8_t verbose)
 {
     uint32_t timeout = CAMERA_CAPTURE_TIMEOUT;
     uint32_t checksum = 0U;
@@ -2919,47 +2920,49 @@ static uint8_t edgecare_camera_capture_attempt(const char *tag,
         quality->score = 0U;
     }
 
-    printf("camera_capture[%s]: data_order=0x%02X/read0x%02X dma=%s words=%lu remain=%lu nonzero=%lu repeated=%lu checksum=0x%08lX quality=phase%u,row_range=%lu,col_range=%lu,neighbor_delta=%lu,score=%lu hs0=%u vs0=%u hs1=%u vs1=%u fv=%u ef=%u ovr=%u vsif=%u elif=%u dmaerr=%u%u%u first=%08lX,%08lX,%08lX,%08lX mid=%08lX,%08lX,%08lX,%08lX last=%08lX,%08lX,%08lX,%08lX\r\n",
-           tag,
-           data_order,
-           data_order_readback,
-           (RESET != dma_done) ? "done" : "timeout",
-           (unsigned long)CAMERA_CAPTURE_WORDS,
-           (unsigned long)dma_remaining,
-           (unsigned long)nonzero_words,
-           (unsigned long)repeated_words,
-           (unsigned long)checksum,
-           (NULL != quality) ? quality->best_phase : 0U,
-           (NULL != quality) ? (unsigned long)quality->row_range : 0UL,
-           (NULL != quality) ? (unsigned long)quality->col_range : 0UL,
-           (NULL != quality) ? (unsigned long)quality->neighbor_delta : 0UL,
-           (NULL != quality) ? (unsigned long)quality->score : 0UL,
-           (SET == hs_before) ? 1U : 0U,
-           (SET == vs_before) ? 1U : 0U,
-           (SET == dci_flag_get(DCI_FLAG_HS)) ? 1U : 0U,
-           (SET == dci_flag_get(DCI_FLAG_VS)) ? 1U : 0U,
-           (SET == dci_fv) ? 1U : 0U,
-           (SET == dci_ef) ? 1U : 0U,
-           (SET == dci_ovr) ? 1U : 0U,
-           (SET == dci_vsync) ? 1U : 0U,
-           (SET == dci_el) ? 1U : 0U,
-           (SET == dma_tae) ? 1U : 0U,
-           (SET == dma_sde) ? 1U : 0U,
-           (SET == dma_fee) ? 1U : 0U,
-           (unsigned long)g_camera_capture_buffer[0],
-           (unsigned long)g_camera_capture_buffer[1],
-           (unsigned long)g_camera_capture_buffer[2],
-           (unsigned long)g_camera_capture_buffer[3],
-           (unsigned long)g_camera_capture_buffer[middle_index],
-           (unsigned long)g_camera_capture_buffer[middle_index + 1U],
-           (unsigned long)g_camera_capture_buffer[middle_index + 2U],
-           (unsigned long)g_camera_capture_buffer[middle_index + 3U],
-           (unsigned long)g_camera_capture_buffer[last_index],
-           (unsigned long)g_camera_capture_buffer[last_index + 1U],
-           (unsigned long)g_camera_capture_buffer[last_index + 2U],
-           (unsigned long)g_camera_capture_buffer[last_index + 3U]);
+    if(verbose) {
+        printf("camera_capture[%s]: data_order=0x%02X/read0x%02X dma=%s words=%lu remain=%lu nonzero=%lu repeated=%lu checksum=0x%08lX quality=phase%u,row_range=%lu,col_range=%lu,neighbor_delta=%lu,score=%lu hs0=%u vs0=%u hs1=%u vs1=%u fv=%u ef=%u ovr=%u vsif=%u elif=%u dmaerr=%u%u%u first=%08lX,%08lX,%08lX,%08lX mid=%08lX,%08lX,%08lX,%08lX last=%08lX,%08lX,%08lX,%08lX\r\n",
+               tag,
+               data_order,
+               data_order_readback,
+               (RESET != dma_done) ? "done" : "timeout",
+               (unsigned long)CAMERA_CAPTURE_WORDS,
+               (unsigned long)dma_remaining,
+               (unsigned long)nonzero_words,
+               (unsigned long)repeated_words,
+               (unsigned long)checksum,
+               (NULL != quality) ? quality->best_phase : 0U,
+               (NULL != quality) ? (unsigned long)quality->row_range : 0UL,
+               (NULL != quality) ? (unsigned long)quality->col_range : 0UL,
+               (NULL != quality) ? (unsigned long)quality->neighbor_delta : 0UL,
+               (NULL != quality) ? (unsigned long)quality->score : 0UL,
+               (SET == hs_before) ? 1U : 0U,
+               (SET == vs_before) ? 1U : 0U,
+               (SET == dci_flag_get(DCI_FLAG_HS)) ? 1U : 0U,
+               (SET == dci_flag_get(DCI_FLAG_VS)) ? 1U : 0U,
+               (SET == dci_fv) ? 1U : 0U,
+               (SET == dci_ef) ? 1U : 0U,
+               (SET == dci_ovr) ? 1U : 0U,
+               (SET == dci_vsync) ? 1U : 0U,
+               (SET == dci_el) ? 1U : 0U,
+               (SET == dma_tae) ? 1U : 0U,
+               (SET == dma_sde) ? 1U : 0U,
+               (SET == dma_fee) ? 1U : 0U,
+               (unsigned long)g_camera_capture_buffer[0],
+               (unsigned long)g_camera_capture_buffer[1],
+               (unsigned long)g_camera_capture_buffer[2],
+               (unsigned long)g_camera_capture_buffer[3],
+               (unsigned long)g_camera_capture_buffer[middle_index],
+               (unsigned long)g_camera_capture_buffer[middle_index + 1U],
+               (unsigned long)g_camera_capture_buffer[middle_index + 2U],
+               (unsigned long)g_camera_capture_buffer[middle_index + 3U],
+               (unsigned long)g_camera_capture_buffer[last_index],
+               (unsigned long)g_camera_capture_buffer[last_index + 1U],
+               (unsigned long)g_camera_capture_buffer[last_index + 2U],
+               (unsigned long)g_camera_capture_buffer[last_index + 3U]);
 
-    while(RESET == usart_flag_get(EVAL_COM, USART_FLAG_TC)) {
+        while(RESET == usart_flag_get(EVAL_COM, USART_FLAG_TC)) {
+        }
     }
 
     return (RESET != dma_done) ? 1U : 0U;
@@ -3028,7 +3031,8 @@ static void camera_pattern_source_capture(const char *tag,
                                           DCI_HSYNC_POLARITY_LOW,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                          &quality);
+                                          &quality,
+                                          1U);
 }
 
 static void camera_pattern_source_sweep_probe(void)
@@ -3289,49 +3293,57 @@ static void camera_ov5640_raw_data_order_capture_sweep_probe(void)
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x00U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_01",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x01U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_02",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x02U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_03",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x03U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_04",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x04U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_05",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x05U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_06",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x06U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)edgecare_camera_capture_attempt("raw_order_07",
                                           DCI_CK_POLARITY_RISING,
                                           DCI_HSYNC_POLARITY_HIGH,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           0x07U,
-                                          &quality);
+                                          &quality,
+                                          1U);
     (void)camera_sccb_write_reg16(0x4745U, EDGECARE_CAMERA_DATA_ORDER_DEFAULT);
     delay_1ms(20U);
     camera_isp_path_regs_log("raw_data_order_capture_sweep_restored");
@@ -3377,7 +3389,8 @@ static void camera_ov5640_jpeg_to_yuv_data_order_capture_sweep_probe(void)
                                                      DCI_HSYNC_POLARITY_LOW,
                                                      DCI_VSYNC_POLARITY_HIGH,
                                                      data_orders[i],
-                                                     &quality);
+                                                     &quality,
+                                                     1U);
         if(0U != capture_ok) {
             camera_jpeg_to_yuv_byte_scale_log(tags[i], data_orders[i]);
         } else {
@@ -3566,7 +3579,8 @@ static void camera_output_mux_capture(const char *tag,
                                           DCI_HSYNC_POLARITY_LOW,
                                           DCI_VSYNC_POLARITY_HIGH,
                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                          &quality);
+                                          &quality,
+                                          1U);
 }
 
 static void camera_ov5640_output_mux_sweep_probe(void)
@@ -3662,7 +3676,8 @@ static void camera_ov5640_raw_dci_matrix_probe(void)
                                               variants[i].hsync_polarity,
                                               variants[i].vsync_polarity,
                                               EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                              &quality);
+                                              &quality,
+                                              1U);
     }
 
     (void)camera_sccb_write_reg16(0x501FU, saved_501f);
@@ -3963,7 +3978,8 @@ static void camera_ov5640_jpeg_to_yuv_tune_sweep_probe(void)
                                               variants[i].hsync_polarity,
                                               variants[i].vsync_polarity,
                                               EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                              &quality);
+                                              &quality,
+                                              1U);
     }
 #endif
 }
@@ -4118,7 +4134,8 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_LOW,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
 #elif EDGECARE_CAMERA_NORMAL_OUTPUT_RGB565
     printf("camera_capture_normal: source=OV5640_RGB565 output_mux=0x01 timing=471d00_474020 dci=pclk_falling_hs_blank_low_vs_blank_high\r\n");
     camera_apply_rgb565_capture_path();
@@ -4127,7 +4144,8 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_LOW,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
 #elif EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV
     printf("camera_capture_normal: source=OV5640_ISP_YUV422 output_mux=0x00 timing=471d00_474022 dci=pclk_rising_hs_blank_high_vs_blank_high\r\n");
     camera_apply_isp_yuv_capture_path();
@@ -4136,7 +4154,8 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_HIGH,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
 #elif EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
     camera_apply_jpeg_to_yuv_ref_capture_path();
 #if EDGECARE_ENABLE_CAMERA_WINDOW_READBACK
@@ -4149,7 +4168,8 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_LOW,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
 #else
     printf("camera_capture_normal: source=OV5640_JPEG_TO_YUV_REF output_mux=0x00 timing=471d00_474020 dci=pclk_falling_hs_blank_low_vs_blank_high note=photo_proof_candidate\r\n");
     return edgecare_camera_capture_attempt("normal_jpeg_to_yuv_ref",
@@ -4157,7 +4177,8 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_LOW,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
 #endif
 #else
     printf("camera_capture_normal: source=OV5640_SNR_RAW8 output_mux=0x04 timing=471d00_474022 dci=pclk_rising_hs_blank_high_vs_blank_high\r\n");
@@ -4167,7 +4188,65 @@ uint8_t bsp_camera_ov5640_capture_probe(void)
                                            DCI_HSYNC_POLARITY_HIGH,
                                            DCI_VSYNC_POLARITY_HIGH,
                                            EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
-                                           &normal_quality);
+                                           &normal_quality,
+                                           1U);
+#endif
+}
+
+uint8_t bsp_camera_ov5640_capture_frame(void)
+{
+    camera_frame_quality_t quality = {0U, 0U, 0U, 0U, 0U, 0U};
+
+#if EDGECARE_CAMERA_NORMAL_OUTPUT_DVP_PATTERN
+    return edgecare_camera_capture_attempt("runtime_dvp_pattern",
+                                           DCI_CK_POLARITY_FALLING,
+                                           DCI_HSYNC_POLARITY_LOW,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_RGB565
+    return edgecare_camera_capture_attempt("runtime_rgb565",
+                                           DCI_CK_POLARITY_FALLING,
+                                           DCI_HSYNC_POLARITY_LOW,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_ISP_YUV
+    return edgecare_camera_capture_attempt("runtime_isp_yuv422",
+                                           DCI_CK_POLARITY_RISING,
+                                           DCI_HSYNC_POLARITY_HIGH,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
+#elif EDGECARE_CAMERA_NORMAL_OUTPUT_JPEG_TO_YUV_REF
+#if EDGECARE_CAMERA_JPEG_TO_YUV_DCI_RISING
+    return edgecare_camera_capture_attempt("runtime_jpeg_to_yuv_ref",
+                                           DCI_CK_POLARITY_RISING,
+                                           DCI_HSYNC_POLARITY_LOW,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
+#else
+    return edgecare_camera_capture_attempt("runtime_jpeg_to_yuv_ref",
+                                           DCI_CK_POLARITY_FALLING,
+                                           DCI_HSYNC_POLARITY_LOW,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
+#endif
+#else
+    return edgecare_camera_capture_attempt("runtime_snr_raw8",
+                                           DCI_CK_POLARITY_RISING,
+                                           DCI_HSYNC_POLARITY_HIGH,
+                                           DCI_VSYNC_POLARITY_HIGH,
+                                           EDGECARE_CAMERA_DATA_ORDER_DEFAULT,
+                                           &quality,
+                                           0U);
 #endif
 }
 

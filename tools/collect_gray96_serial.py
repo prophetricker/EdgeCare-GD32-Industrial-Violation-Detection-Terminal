@@ -87,11 +87,26 @@ class DumpCollector:
         data = DATA_RE.search(line)
         if data and self.current is not None:
             offset = int(data.group("offset"))
-            chunk = bytes.fromhex(data.group("hex"))
+            hex_data = data.group("hex")
+            if len(hex_data) % 2 != 0:
+                print(f"discard frame: malformed odd-length hex at offset={offset} len={len(hex_data)}")
+                self.current = None
+                self.last_progress_at = dt.datetime.now()
+                return False
+            try:
+                chunk = bytes.fromhex(hex_data)
+            except ValueError as exc:
+                print(f"discard frame: malformed hex at offset={offset}: {exc}")
+                self.current = None
+                self.last_progress_at = dt.datetime.now()
+                return False
             frame_bytes = int(self.current["bytes"])
             end = offset + len(chunk)
             if offset < 0 or end > frame_bytes:
-                raise ValueError(f"chunk outside frame: offset={offset} len={len(chunk)} frame={frame_bytes}")
+                print(f"discard frame: chunk outside frame offset={offset} len={len(chunk)} frame={frame_bytes}")
+                self.current = None
+                self.last_progress_at = dt.datetime.now()
+                return False
 
             buffer = self.current["data"]
             filled = self.current["filled"]

@@ -11,7 +11,6 @@
 #define EDGECARE_VOTE_INTRUSION_REQUIRED 2U
 #define EDGECARE_VOTE_SAFE_RELEASE_REQUIRED 2U
 #define EDGECARE_VOTE_WINDOW_FRAMES 3U
-#define EDGECARE_BASELINE_GRID 4U
 #define EDGECARE_Q15_ONE 32768
 
 static int32_t clamp_int32(int64_t value)
@@ -114,7 +113,7 @@ uint8_t edgecare_infer(const uint8_t *input, edgecare_infer_result_t *result)
     result->confidence_percent = score_to_confidence_percent(score_q15);
     result->intrusion = (score_q15 >= EDGECARE_BASELINE_LOGIT_THRESHOLD_Q15) ? 1U : 0U;
     result->inference_time_ms = 1U;
-    result->model_name = "gray_stats_grid4_logreg_baseline";
+    result->model_name = EDGECARE_BASELINE_MODEL_NAME;
     result->is_placeholder = 0U;
 
     return 1U;

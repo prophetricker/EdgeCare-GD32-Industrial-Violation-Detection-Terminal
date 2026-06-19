@@ -74,6 +74,37 @@ def test_byte_plane_dump_is_routed_to_diagnostic_dir() -> None:
         shutil.rmtree(tmp)
 
 
+def test_malformed_hex_line_discards_frame_and_keeps_collecting() -> None:
+    tmp = Path(tempfile.mkdtemp(prefix="edgecare_collect_test_"))
+    try:
+        collector = collect_gray96_serial.DumpCollector(
+            out_dir=tmp / "raw_gray96",
+            diag_out_dir=tmp / "diag",
+            label="empty",
+            limit=1,
+            variant_filter="jpeg_to_yuv_ref_y02",
+            kind_filter="gray96",
+            echo=False,
+        )
+
+        feed_lines(
+            collector,
+            [
+                "image_dump_begin: dev=edgecare-01 kind=gray96 variant=jpeg_to_yuv_ref_y02 width=4 height=4 bytes=16 checksum=0xBADF00D format=hex8",
+                "image_dump_data: offset=0 hex=0011223",
+                "image_dump_end: bytes=16",
+                *make_dump("gray96", "jpeg_to_yuv_ref_y02", "1234ABCD", "000102030405060708090A0B0C0D0E0F"),
+            ],
+        )
+
+        sample_dir = tmp / "raw_gray96" / "empty"
+        assert len(list(sample_dir.glob("*_empty_gray96_jpeg_to_yuv_ref_y02_4x4_1234ABCD.pgm"))) == 1
+        assert collector.saved == 1
+    finally:
+        shutil.rmtree(tmp)
+
+
 if __name__ == "__main__":
     test_current_jpeg_to_yuv_ref_gray96_dump_is_saved_under_label_dir()
     test_byte_plane_dump_is_routed_to_diagnostic_dir()
+    test_malformed_hex_line_discards_frame_and_keeps_collecting()
